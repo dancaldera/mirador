@@ -20,6 +20,10 @@ Built with TypeScript, React (Ink), and Bun native modules for maximum performan
 - ⚡ **Blazing Fast**: Built with Bun for speed
 - 🛡️ **Security Guardrails**: Query limits and dangerous operation warnings
 
+## 🔮 Coming Soon
+
+- 🔴 **Redis Support**: Connect and explore Redis databases with the same intuitive interface
+
 ## 🚀 Installation
 
 ### Prerequisites
