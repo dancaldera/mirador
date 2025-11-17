@@ -10,7 +10,11 @@ SeerDB provides multiple interfaces for AI agents to safely interact with databa
 2. **API Mode** - JSON-based stdin/stdout protocol for interactive control
 3. **Headless Mode** - Command-line execution with JSON output for automation
 
-**🚀 TOON Format (Recommended)**: SeerDB uses TOON (Token-Oriented Object Notation) as the default format for AI agent data exchange. TOON provides **30-60% fewer tokens** than JSON while maintaining full compatibility and adding LLM-friendly structure validation.
+**🚀 TOON Format (Required for AI Agents)**: SeerDB uses TOON (Token-Oriented Object Notation) as the **default and recommended format for AI agent data exchange**. TOON provides **30-60% fewer tokens** than JSON while maintaining full compatibility and adding LLM-friendly structure validation.
+
+**📋 Format Guidelines**:
+- **AI Agents**: Always use TOON format for optimal token efficiency and LLM compatibility
+- **Humans**: Use JSON format for readability and standard data interchange
 
 ## TOON Format for AI Agents
 
@@ -29,9 +33,12 @@ TOON (Token-Oriented Object Notation) is SeerDB's default format for AI agent da
 const agent = createAgent();
 await agent.connect(config);
 
-// Export in TOON format (default for agents)
+// Export in TOON format (default and recommended for AI agents)
 const result = await agent.query("SELECT * FROM users LIMIT 10");
-const toonData = await agent.exportData(result, "toon"); // Default format
+const toonData = await agent.exportData(result, "toon"); // Default format - use for agents
+
+// For human consumption only - use JSON
+const jsonData = await agent.exportData(result, "json"); // Human-readable format
 
 // Direct table export in TOON
 const tableToon = await agent.exportTableToToon("products", {
@@ -52,6 +59,25 @@ const tableToon = await agent.exportTableToToon("products", {
 data[1]{id,name,role}:
   1,Alice,admin
 ```
+
+### Format Selection Guidelines
+
+**When to use TOON format:**
+- ✅ **AI Agent Data Exchange**: All programmatic agent interactions should use TOON
+- ✅ **Token Optimization**: When minimizing LLM token usage is critical
+- ✅ **Structured Data**: Tabular data with uniform schemas
+- ✅ **Automation Scripts**: CI/CD pipelines and automated workflows
+
+**When to use JSON format:**
+- ✅ **Human Consumption**: Interactive terminal output for users
+- ✅ **API Integration**: Standard web service responses
+- ✅ **Tool Compatibility**: When integrating with JSON-only tools
+- ✅ **Debugging**: Human-readable output for troubleshooting
+
+**Default Behaviors:**
+- **Agent API**: TOON format by default
+- **Headless Mode**: TOON format by default (specify `--output json` for humans)
+- **API Mode**: JSON format (protocol requirement)
 
 ## Quick Start
 
@@ -105,13 +131,13 @@ Send JSON commands via stdin:
 ### Headless Mode (One-off Operations)
 
 ```bash
-# Query with automatic limits (TOON format - default for AI agents)
+# 🔄 AI AGENTS: Use TOON format (default for agents, 30-60% fewer tokens)
 seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output toon
 
-# Query with JSON output
+# 👥 HUMANS: Use JSON format (readable, standard interchange)
 seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output json
 
-# List saved connections
+# 🔄 AI AGENTS: List saved connections in TOON format
 seerdb --headless --list-connections --output toon
 ```
 
@@ -340,17 +366,20 @@ const data = await agent.getTableData("users", {
 ## Headless Mode Examples
 
 ```bash
-# PostgreSQL with connection string
+# 🔄 AI AGENTS: PostgreSQL query in TOON format (default for agents)
 seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT 1" --output toon
 
-# MySQL with individual parameters
+# 🔄 AI AGENTS: MySQL query in TOON format (specify explicitly for clarity)
 seerdb --headless --db-type mysql --host localhost --database mydb --user myuser --password mypass --query "SELECT * FROM users LIMIT 10" --output toon
 
-# SQLite
+# 🔄 AI AGENTS: SQLite query in TOON format
 seerdb --headless --db-type sqlite --connect /path/to/db.sqlite --query "SELECT * FROM table1" --output toon
 
-# List all saved connections
+# 🔄 AI AGENTS: List connections in TOON format
 seerdb --headless --list-connections --output toon
+
+# 👥 HUMANS: Same queries but in JSON format for readability
+seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output json
 ```
 
 ## Database Support
@@ -479,7 +508,7 @@ import type {
 - `getTableData(tableName, options)` - Safe table browsing
 - `getUsersSample(limit?)` - Safe user sampling
 - `transaction(queries)` - Execute multiple queries as transaction
-- `exportData(result, format="toon")` - Export query results in TOON/JSON/CSV formats
+- `exportData(result, format="toon")` - Export query results in TOON (default for AI agents), JSON, or CSV formats
 - `exportTableToToon(tableName, options)` - Direct table export in TOON format
 - `isConnected()` - Check connection status
 
