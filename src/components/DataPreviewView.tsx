@@ -33,7 +33,6 @@ const TABLE_MARGIN = 4;
 const BORDER_WIDTH = 2;
 const INDICATOR_WIDTH = 2;
 
-
 const DataPreviewViewComponent: React.FC = () => {
 	const dispatch = useAppDispatch();
 	const state = useAppState();
@@ -434,7 +433,6 @@ const DataPreviewViewComponent: React.FC = () => {
 			return;
 		}
 
-		
 		if (input === "n" && state.hasMoreRows && !state.loading) {
 			void fetchTableData(
 				dispatch,

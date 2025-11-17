@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "bun:test";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { constants } from "fs";
 import path from "path";
-import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 import type {
 	ColumnInfo,
 	ConnectionInfo,
@@ -1004,7 +1004,7 @@ describe("persistence utilities", () => {
 
 			// Mock Array.prototype.push to throw an error
 			const originalPush = Array.prototype.push;
-			Array.prototype.push = function (...items) {
+			Array.prototype.push = (...items) => {
 				throw new Error("Unexpected error during array push");
 			};
 

@@ -28,8 +28,8 @@ vi.mock("../../src/utils/data-processing.js", () => ({
 import { beforeEach, describe, expect, it } from "bun:test";
 import { ConnectionError } from "../../src/database/errors.js";
 import * as effects from "../../src/state/effects.js";
-import { exportData, formatExportSummary } from "../../src/utils/export.js";
 import { processRows } from "../../src/utils/data-processing.js";
+import { exportData, formatExportSummary } from "../../src/utils/export.js";
 
 const {
 	connectToDatabase,
