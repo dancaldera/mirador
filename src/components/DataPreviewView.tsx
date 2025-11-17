@@ -34,6 +34,12 @@ const TABLE_MARGIN = 4;
 const BORDER_WIDTH = 2;
 const INDICATOR_WIDTH = 2;
 
+// Simple function to create a cache key for a table
+const tableCacheKey = (table: TableInfo | null): string | null => {
+	if (!table) return null;
+	return table.schema ? `${table.schema}.${table.name}` : table.name;
+};
+
 const DataPreviewViewComponent: React.FC = () => {
 	const dispatch = useAppDispatch();
 	const state = useAppState();
@@ -214,7 +220,8 @@ const DataPreviewViewComponent: React.FC = () => {
 
 		// Loading status
 		if (state.loading) parts.push("Loading");
-		if (state.refreshingTableKey === cacheKey) parts.push("Refreshing");
+		if (state.refreshingTableKey === tableCacheKey(table))
+			parts.push("Refreshing");
 
 		return parts.join(" • ");
 	}, [
@@ -223,7 +230,7 @@ const DataPreviewViewComponent: React.FC = () => {
 		state.sortConfig,
 		state.loading,
 		state.refreshingTableKey,
-		cacheKey,
+		tableCacheKey(table),
 		fixedPKColumns.length,
 		navigableColumns.length,
 		columnStartIndex,

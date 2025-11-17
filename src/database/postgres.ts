@@ -22,7 +22,7 @@ export class PostgresConnection implements DatabaseConnection {
 			const sslMode = url.searchParams.get("sslmode");
 
 			if (sslMode === "disable" || sslMode === "0") {
-				sslConfig = false;
+				sslConfig = { rejectUnauthorized: false };
 			} else if (sslMode === "require" || sslMode === "prefer") {
 				sslConfig = { rejectUnauthorized: false };
 			} else if (sslMode === "verify-ca" || sslMode === "verify-full") {

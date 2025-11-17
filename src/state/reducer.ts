@@ -2,6 +2,12 @@ import { produce } from "immer";
 import { type AppState, initialAppState, ViewState } from "../types/state.js";
 import { ActionType, type AppAction } from "./actions.js";
 
+// Simple function to create a cache key for a table
+const tableCacheKey = (table: AppState["selectedTable"]): string | null => {
+	if (!table) return null;
+	return table.schema ? `${table.schema}.${table.name}` : table.name;
+};
+
 function resetSearchState(draft: AppState): void {
 	draft.searchTerm = "";
 	draft.searchResults = [];
@@ -112,48 +118,16 @@ export function appReducer(
 
 			case ActionType.SetColumns:
 				draft.columns = action.columns;
-				{
-					const key = tableCacheKey(draft.selectedTable);
-					if (key) {
-						const cache = draft.tableCache[key] ?? {
-							columns: [],
-							rows: draft.dataRows,
-							hasMore: draft.hasMoreRows,
-							offset: draft.currentOffset,
-						};
-						cache.columns = action.columns;
-						draft.tableCache[key] = cache;
-					}
-				}
 				break;
 
 			case ActionType.SetSelectedTable:
 				draft.selectedTable = action.table;
 				resetSearchState(draft);
-				{
-					const key = tableCacheKey(action.table);
-					const cache = key ? draft.tableCache[key] : undefined;
-					if (cache) {
-						draft.columns = cache.columns;
-						draft.dataRows = cache.rows;
-						draft.hasMoreRows = cache.hasMore;
-						draft.currentOffset = cache.offset;
-					} else {
-						draft.columns = [];
-						draft.dataRows = [];
-						draft.hasMoreRows = false;
-						draft.currentOffset = 0;
-						if (key) {
-							draft.tableCache[key] = {
-								columns: [],
-								rows: [],
-								hasMore: false,
-								offset: 0,
-							};
-						}
-					}
-					draft.refreshingTableKey = key ?? null;
-				}
+				draft.columns = [];
+				draft.dataRows = [];
+				draft.hasMoreRows = false;
+				draft.currentOffset = 0;
+				draft.refreshingTableKey = tableCacheKey(action.table);
 				break;
 
 			case ActionType.UpdateDataRowValue: {
@@ -172,22 +146,6 @@ export function appReducer(
 						[columnName]: value,
 					};
 				}
-				const cacheKey = tableCacheKey(table ?? draft.selectedTable);
-				if (cacheKey && draft.tableCache[cacheKey]) {
-					const cache = draft.tableCache[cacheKey];
-					const targetIndex =
-						effectiveRowIndex !== null
-							? effectiveRowIndex
-							: draft.selectedRowIndex !== null
-								? draft.selectedRowIndex
-								: null;
-					if (targetIndex !== null && cache.rows[targetIndex]) {
-						cache.rows[targetIndex] = {
-							...cache.rows[targetIndex],
-							[columnName]: value,
-						};
-					}
-				}
 				break;
 			}
 
@@ -202,22 +160,6 @@ export function appReducer(
 
 			case ActionType.SetDataRows:
 				draft.dataRows = action.rows;
-				{
-					const key = tableCacheKey(draft.selectedTable);
-					if (key) {
-						const cache = draft.tableCache[key] ?? {
-							columns: draft.columns,
-							rows: [],
-							hasMore: draft.hasMoreRows,
-							offset: draft.currentOffset,
-						};
-						cache.rows = action.rows;
-						draft.tableCache[key] = cache;
-						if (draft.refreshingTableKey === key) {
-							draft.refreshingTableKey = null;
-						}
-					}
-				}
 				break;
 
 			case ActionType.SetRefreshingTable:
@@ -226,41 +168,12 @@ export function appReducer(
 
 			case ActionType.SetHasMoreRows:
 				draft.hasMoreRows = action.hasMore;
-				{
-					const key = tableCacheKey(draft.selectedTable);
-					if (key) {
-						const cache = draft.tableCache[key] ?? {
-							columns: draft.columns,
-							rows: draft.dataRows,
-							hasMore: false,
-							offset: draft.currentOffset,
-						};
-						cache.hasMore = action.hasMore;
-						draft.tableCache[key] = cache;
-						if (draft.refreshingTableKey === key && !draft.loading) {
-							draft.refreshingTableKey = null;
-						}
-					}
-				}
 				break;
 
 			case ActionType.SetCurrentOffset:
 				draft.currentOffset = action.offset;
 				draft.selectedRowIndex = null;
 				draft.expandedRow = null;
-				{
-					const key = tableCacheKey(draft.selectedTable);
-					if (key) {
-						const cache = draft.tableCache[key] ?? {
-							columns: draft.columns,
-							rows: draft.dataRows,
-							hasMore: draft.hasMoreRows,
-							offset: 0,
-						};
-						cache.offset = action.offset;
-						draft.tableCache[key] = cache;
-					}
-				}
 				break;
 
 			case ActionType.SetSelectedRowIndex:

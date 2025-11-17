@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import type { DBType } from "../types/state.js";
+import { DBType } from "../types/state.js";
 import { loadConnections } from "./persistence.js";
 
 /**
@@ -205,7 +205,7 @@ export function validateConnectionName(name: string): NameValidationResult {
 	}
 
 	// Check for invalid characters that might cause issues
-	const invalidPattern = /[<>:"/\\|?*\x00-\x1f]/;
+	const invalidPattern = /[<>:"/\\|?*]/;
 	if (invalidPattern.test(trimmedName)) {
 		return {
 			isValid: false,
@@ -303,7 +303,7 @@ export async function validateConnectionNameComplete(
 	if (!isUnique) {
 		// Generate a suggestion
 		const existingConnection = await findConnectionByName(name);
-		const type = existingConnection?.type || "postgresql";
+		const type = existingConnection?.type || DBType.PostgreSQL;
 		const suggestion = await generateUniqueConnectionName(
 			name,
 			type,

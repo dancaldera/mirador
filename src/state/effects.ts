@@ -27,6 +27,13 @@ import {
 	generateUniqueConnectionName,
 	validateConnectionNameComplete,
 } from "../utils/id-generator.js";
+
+// Simple function to create a cache key for a table
+const tableCacheKey = (table: TableInfo | null): string | null => {
+	if (!table) return null;
+	return table.schema ? `${table.schema}.${table.name}` : table.name;
+};
+
 import {
 	loadConnections,
 	loadQueryHistory,
@@ -368,29 +375,6 @@ export async function fetchTableData(
 			hasMore: result.rows.length === limit,
 		});
 		dispatch({ type: ActionType.SetCurrentOffset, offset });
-
-		// Only update cache for unsorted data to prevent cache corruption
-		// When sorting is active, we don't cache the results since the cache key
-		// doesn't include sort configuration
-		const isSortActive =
-			state.sortConfig.column !== null && state.sortConfig.direction !== "off";
-
-		const connectionId = state.activeConnection?.id;
-		if (connectionId && !isSortActive) {
-			const cacheKey = tableCacheKey(table);
-			if (cacheKey) {
-				const updatedCache = {
-					...state.tableCache,
-					[cacheKey]: {
-						columns: state.tableCache[cacheKey]?.columns ?? state.columns,
-						rows: result.rows,
-						hasMore: result.rows.length === limit,
-						offset,
-					},
-				};
-				await saveTableCache(connectionId, updatedCache);
-			}
-		}
 	} catch (error) {
 		dispatch({
 			type: ActionType.SetError,
@@ -637,23 +621,12 @@ export async function clearTableCacheEntry(
 	dbConfig: DatabaseConfig,
 	table: TableInfo,
 ): Promise<void> {
-	const connectionId = state.activeConnection?.id;
 	const cacheKey = tableCacheKey(table);
 
-	if (!connectionId || !cacheKey) {
-		return;
-	}
-
-	const updatedCache = { ...state.tableCache };
-	delete updatedCache[cacheKey];
-
-	dispatch({ type: ActionType.RemoveTableCacheEntry, key: cacheKey });
 	dispatch({ type: ActionType.SetRefreshingTable, key: cacheKey });
-	await saveTableCache(connectionId, updatedCache);
 
 	const resetState: AppState = {
 		...state,
-		tableCache: updatedCache,
 		columns: [],
 		dataRows: [],
 		hasMoreRows: false,
@@ -672,26 +645,12 @@ export async function clearConnectionCache(
 	dispatch: AppDispatch,
 	state: AppState,
 ): Promise<void> {
-	const connectionId = state.activeConnection?.id;
-	if (!connectionId) {
-		return;
-	}
-
-	try {
-		await saveTableCache(connectionId, {});
-		dispatch({ type: ActionType.SetTableCache, cache: {} });
-		dispatch({ type: ActionType.SetRefreshingTable, key: null });
-		enqueueNotification(
-			dispatch,
-			"Cleared cached tables for current connection.",
-			"info",
-		);
-	} catch (error) {
-		dispatch({
-			type: ActionType.SetError,
-			error: error instanceof Error ? error.message : "Failed to clear cache.",
-		});
-	}
+	dispatch({ type: ActionType.SetRefreshingTable, key: null });
+	enqueueNotification(
+		dispatch,
+		"Cache cleared for current connection.",
+		"info",
+	);
 }
 
 export async function removeSavedConnection(
