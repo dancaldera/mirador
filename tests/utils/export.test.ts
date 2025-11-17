@@ -4,7 +4,11 @@ import type { ColumnInfo, DataRow } from "../../src/types/state.js";
 import {
 	type ExportOptions,
 	exportData,
+	exportSchema,
+	exportToJsonString,
+	exportToToonString,
 	formatExportSummary,
+	streamToJson,
 	validateExportOptions,
 } from "../../src/utils/export.js";
 
@@ -462,5 +466,316 @@ describe("CSV generation edge cases", () => {
 		expect(content).toContain('"3.14"');
 		expect(content).toContain('"true"');
 		expect(content).toContain('"false"');
+	});
+});
+
+describe("exportData TOON format", () => {
+	const mockData: DataRow[] = [
+		{ id: 1, name: "Alice", age: 30, active: true },
+		{ id: 2, name: "Bob", age: 25, active: false },
+	];
+
+	const mockColumns: ColumnInfo[] = [
+		{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
+		{ name: "name", dataType: "varchar", nullable: false },
+		{ name: "age", dataType: "integer", nullable: true },
+		{ name: "active", dataType: "boolean", nullable: false },
+	];
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockMkdir.mockResolvedValue(undefined);
+		mockWriteFile.mockResolvedValue(undefined);
+		mockHomedir.mockReturnValue("/home/user");
+	});
+
+	it("exports data as TOON with headers (metadata)", async () => {
+		const options: ExportOptions = {
+			format: "toon",
+			includeHeaders: true,
+			filename: "test.toon",
+		};
+
+		const filepath = await exportData(mockData, mockColumns, options);
+
+		expect(filepath).toBe("/home/user/.mirador/exports/test.toon");
+		expect(mockWriteFile).toHaveBeenCalledWith(
+			filepath,
+			expect.stringContaining("exportedAt"),
+			"utf-8",
+		);
+	});
+
+	it("exports data as TOON without headers (data only)", async () => {
+		const options: ExportOptions = {
+			format: "toon",
+			includeHeaders: false,
+			filename: "test.toon",
+		};
+
+		const filepath = await exportData(mockData, mockColumns, options);
+
+		expect(filepath).toBe("/home/user/.mirador/exports/test.toon");
+		expect(mockWriteFile).toHaveBeenCalledWith(
+			filepath,
+			expect.not.stringContaining("exportedAt"),
+			"utf-8",
+		);
+	});
+
+	it("throws error for unsupported format", async () => {
+		const options = {
+			format: "xml" as any,
+			includeHeaders: true,
+			filename: "test.xml",
+		};
+
+		await expect(exportData(mockData, mockColumns, options)).rejects.toThrow(
+			"Unsupported export format: xml",
+		);
+	});
+});
+
+describe("exportSchema", () => {
+	const mockTables: any[] = [
+		{ name: "users", schema: "public", type: "table" as const },
+		{ name: "posts", schema: "public", type: "table" as const },
+	];
+
+	const mockColumns: Record<string, ColumnInfo[]> = {
+		"public.users": [
+			{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
+			{ name: "name", dataType: "varchar", nullable: false },
+		],
+		"public.posts": [
+			{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
+			{
+				name: "user_id",
+				dataType: "integer",
+				nullable: false,
+				isForeignKey: true,
+			},
+		],
+	};
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockMkdir.mockResolvedValue(undefined);
+		mockWriteFile.mockResolvedValue(undefined);
+		mockHomedir.mockReturnValue("/home/user");
+	});
+
+	it("exports schema with default filename", async () => {
+		const filepath = await exportSchema(mockTables, mockColumns);
+
+		expect(filepath).toMatch(
+			/\/schema-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/,
+		);
+		expect(mockMkdir).toHaveBeenCalledWith("/home/user/.mirador/exports", {
+			recursive: true,
+		});
+	});
+
+	it("exports schema with custom filename", async () => {
+		const filepath = await exportSchema(mockTables, mockColumns, {
+			filename: "custom-schema.json",
+		});
+
+		expect(filepath).toBe("/home/user/.mirador/exports/custom-schema.json");
+	});
+
+	it("exports schema with custom output directory", async () => {
+		const filepath = await exportSchema(mockTables, mockColumns, {
+			outputDir: "/custom/schemas",
+		});
+
+		expect(filepath).toMatch(/^\/custom\/schemas\/schema-/);
+		expect(mockMkdir).toHaveBeenCalledWith("/custom/schemas", {
+			recursive: true,
+		});
+	});
+
+	it("includes table and column information", async () => {
+		await exportSchema(mockTables, mockColumns, {
+			filename: "schema.json",
+		});
+
+		const content = JSON.parse(mockWriteFile.mock.calls[0][1] as string);
+
+		expect(content).toHaveProperty("exportedAt");
+		expect(content).toHaveProperty("tables");
+		expect(content.tables).toHaveLength(2);
+		expect(content.tables[0]).toEqual({
+			name: "users",
+			schema: "public",
+			type: "table",
+			columns: mockColumns["public.users"],
+		});
+	});
+
+	it("handles tables without schema", async () => {
+		const tablesWithoutSchema = [
+			{ name: "users", schema: undefined, type: "table" as const },
+		];
+		const columnsWithoutSchema: Record<string, ColumnInfo[]> = {
+			users: [{ name: "id", dataType: "integer", nullable: false }],
+		};
+
+		await exportSchema(tablesWithoutSchema, columnsWithoutSchema, {
+			filename: "no-schema.json",
+		});
+
+		const content = JSON.parse(mockWriteFile.mock.calls[0][1] as string);
+		expect(content.tables[0].columns).toEqual(columnsWithoutSchema.users);
+	});
+});
+
+describe("exportToJsonString", () => {
+	const mockData: DataRow[] = [
+		{ id: 1, name: "Alice", age: 30 },
+		{ id: 2, name: "Bob", age: 25 },
+	];
+
+	const mockColumns: ColumnInfo[] = [
+		{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
+		{ name: "name", dataType: "varchar", nullable: false },
+		{ name: "age", dataType: "integer", nullable: true },
+	];
+
+	it("exports data with metadata when columns provided", () => {
+		const result = exportToJsonString(mockData, mockColumns, true);
+
+		const parsed = JSON.parse(result);
+		expect(parsed).toHaveProperty("exportedAt");
+		expect(parsed).toHaveProperty("columns");
+		expect(parsed).toHaveProperty("rowCount", 2);
+		expect(parsed).toHaveProperty("data");
+		expect(parsed.data).toEqual(mockData);
+	});
+
+	it("exports data without metadata when includeMetadata is false", () => {
+		const result = exportToJsonString(mockData, mockColumns, false);
+
+		const parsed = JSON.parse(result);
+		expect(parsed).toEqual(mockData);
+		expect(parsed).not.toHaveProperty("exportedAt");
+	});
+
+	it("exports data without metadata when no columns provided", () => {
+		const result = exportToJsonString(mockData);
+
+		const parsed = JSON.parse(result);
+		expect(parsed).toEqual(mockData);
+	});
+
+	it("includes all column metadata", () => {
+		const result = exportToJsonString(mockData, mockColumns, true);
+
+		const parsed = JSON.parse(result);
+		expect(parsed.columns).toEqual([
+			{
+				name: "id",
+				dataType: "integer",
+				nullable: false,
+				isPrimaryKey: true,
+			},
+			{
+				name: "name",
+				dataType: "varchar",
+				nullable: false,
+			},
+			{
+				name: "age",
+				dataType: "integer",
+				nullable: true,
+			},
+		]);
+	});
+});
+
+describe("exportToToonString", () => {
+	const mockData: DataRow[] = [
+		{ id: 1, name: "Alice", age: 30 },
+		{ id: 2, name: "Bob", age: 25 },
+	];
+
+	const mockColumns: ColumnInfo[] = [
+		{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
+		{ name: "name", dataType: "varchar", nullable: false },
+		{ name: "age", dataType: "integer", nullable: true },
+	];
+
+	it("exports data with metadata when columns provided", () => {
+		const result = exportToToonString(mockData, mockColumns, true);
+
+		expect(result).toContain("exportedAt");
+		expect(result).toContain("columns");
+		expect(result).toContain("rowCount");
+		expect(result).toContain("data");
+	});
+
+	it("exports data without metadata when includeMetadata is false", () => {
+		const result = exportToToonString(mockData, mockColumns, false);
+
+		expect(result).not.toContain("exportedAt");
+		expect(result).not.toContain("columns");
+	});
+
+	it("exports data without metadata when no columns provided", () => {
+		const result = exportToToonString(mockData);
+
+		expect(result).not.toContain("exportedAt");
+		expect(result).not.toContain("columns");
+	});
+});
+
+describe("streamToJson", () => {
+	const mockData: DataRow[] = [
+		{ id: 1, name: "Alice", age: 30 },
+		{ id: 2, name: "Bob", age: 25 },
+	];
+
+	const mockColumns: ColumnInfo[] = [
+		{ name: "id", dataType: "integer", nullable: false, isPrimaryKey: true },
+		{ name: "name", dataType: "varchar", nullable: false },
+	];
+
+	it("streams data without metadata", async () => {
+		const chunks: string[] = [];
+		for await (const chunk of streamToJson(mockData)) {
+			chunks.push(chunk);
+		}
+
+		const fullContent = chunks.join("");
+		expect(fullContent).toContain("[");
+		expect(fullContent).toContain("]");
+		expect(fullContent).toContain('"id": 1');
+		expect(fullContent).toContain('"name": "Alice"');
+	});
+
+	it("streams data with metadata", async () => {
+		const chunks: string[] = [];
+		for await (const chunk of streamToJson(mockData, mockColumns)) {
+			chunks.push(chunk);
+		}
+
+		const fullContent = chunks.join("");
+		expect(fullContent).toContain("exportedAt");
+		expect(fullContent).toContain("columns");
+		expect(fullContent).toContain("rowCount");
+		expect(fullContent).toContain("data");
+		expect(fullContent).toContain('"id": 1');
+	});
+
+	it("handles empty data array", async () => {
+		const chunks: string[] = [];
+		for await (const chunk of streamToJson([], mockColumns)) {
+			chunks.push(chunk);
+		}
+
+		const fullContent = chunks.join("");
+		expect(fullContent).toContain("data");
+		expect(fullContent).toContain("rowCount");
+		expect(fullContent).toContain("0");
 	});
 });

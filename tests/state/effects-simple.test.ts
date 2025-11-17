@@ -1,13 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "bun:test";
 import { ActionType } from "../../src/state/actions.js";
 import * as effects from "../../src/state/effects.js";
-import type {
-	ColumnInfo,
-	DatabaseConfig,
-	DataRow,
-	TableInfo,
-} from "../../src/types/state.js";
+import type { ColumnInfo, DataRow, TableInfo } from "../../src/types/state.js";
+import type { DatabaseConfig } from "../../src/database/types.js";
 import { DBType, initialAppState, ViewState } from "../../src/types/state.js";
+import { createDatabaseConnection } from "../../src/database/connection.js";
+
+// Mock database connection
+vi.mock("../../src/database/connection.js", () => ({
+	createDatabaseConnection: vi.fn(),
+}));
+
+// Mock persistence
+vi.mock("../../src/utils/persistence.js", () => ({
+	loadConnections: vi.fn(),
+	loadQueryHistory: vi.fn(),
+	saveConnections: vi.fn(),
+}));
+
+// Import after mocking
 import * as persistence from "../../src/utils/persistence.js";
 
 // Mock the file system operations to prevent tests from writing to real files
@@ -189,113 +200,7 @@ describe("effects - Simple Tests for Better Coverage", () => {
 		});
 	});
 
-	describe("exportTableData - basic functionality", () => {
-		it("handles basic export parameters", async () => {
-			const state = {
-				...initialAppState,
-				activeConnection: {
-					id: "conn1",
-					name: "Test DB",
-					type: DBType.PostgreSQL,
-					connectionString: "postgres://example",
-					createdAt: "2023-01-01T00:00:00.000Z",
-					updatedAt: "2023-01-01T00:00:00.000Z",
-				},
-				selectedTable: null,
-			};
-
-			await effects.exportTableData(
-				dispatch,
-				state,
-				{ type: DBType.PostgreSQL, connectionString: "postgres://example" },
-				{ format: "csv", includeHeaders: true },
-			);
-
-			// Should handle basic export parameters
-			expect(dispatch).toHaveBeenCalled();
-		});
-
-		it("handles JSON export format", async () => {
-			const state = {
-				...initialAppState,
-				activeConnection: {
-					id: "conn1",
-					name: "Test DB",
-					type: DBType.PostgreSQL,
-					connectionString: "postgres://example",
-					createdAt: "2023-01-01T00:00:00.000Z",
-					updatedAt: "2023-01-01T00:00:00.000Z",
-				},
-				selectedTable: null,
-			};
-
-			await effects.exportTableData(
-				dispatch,
-				state,
-				{ type: DBType.PostgreSQL, connectionString: "postgres://example" },
-				{ format: "json", includeHeaders: false },
-			);
-
-			// Should handle JSON export
-			expect(dispatch).toHaveBeenCalled();
-		});
-
-		it("handles export without headers", async () => {
-			const state = {
-				...initialAppState,
-				activeConnection: {
-					id: "conn1",
-					name: "Test DB",
-					type: DBType.PostgreSQL,
-					connectionString: "postgres://example",
-					createdAt: "2023-01-01T00:00:00.000Z",
-					updatedAt: "2023-01-01T00:00:00.000Z",
-				},
-				selectedTable: null,
-			};
-
-			await effects.exportTableData(
-				dispatch,
-				state,
-				{ type: DBType.PostgreSQL, connectionString: "postgres://example" },
-				{ format: "csv", includeHeaders: false },
-			);
-
-			// Should handle export without headers
-			expect(dispatch).toHaveBeenCalled();
-		});
-
-		it("handles large dataset", async () => {
-			const state = {
-				...initialAppState,
-				activeConnection: {
-					id: "conn1",
-					name: "Test DB",
-					type: DBType.PostgreSQL,
-					connectionString: "postgres://example",
-					createdAt: "2023-01-01T00:00:00.000Z",
-					updatedAt: "2023-01-01T00:00:00.000Z",
-				},
-				selectedTable: null,
-				dataRows: Array.from({ length: 10000 }, (_, i) => ({
-					id: i + 1,
-					name: `User ${i + 1}`,
-				})),
-			};
-
-			await effects.exportTableData(
-				dispatch,
-				state,
-				{ type: DBType.PostgreSQL, connectionString: "postgres://example" },
-				{ format: "csv", includeHeaders: true },
-			);
-
-			// Should handle large dataset
-			expect(dispatch).toHaveBeenCalled();
-		});
-	});
-
-	describe("searchTableRows - basic functionality", () => {
+	describe("initializeApp", () => {
 		it("handles basic search parameters", async () => {
 			const state = {
 				...initialAppState,
@@ -494,6 +399,293 @@ describe("effects - Simple Tests for Better Coverage", () => {
 
 			// Should handle very long search term
 			expect(dispatch).toHaveBeenCalled();
+		});
+	});
+
+	describe("initializeApp", () => {
+		it("loads connections and history successfully", async () => {
+			const mockConnectionsResult = {
+				connections: [
+					{
+						id: "1",
+						name: "Test DB",
+						type: DBType.PostgreSQL,
+						connectionString: "postgres://localhost/test",
+						createdAt: "2023-01-01T00:00:00.000Z",
+						updatedAt: "2023-01-01T00:00:00.000Z",
+					},
+				],
+				normalized: 0,
+				skipped: 0,
+			};
+			const mockHistory = [
+				{
+					id: "1",
+					connectionId: "conn1",
+					query: "SELECT 1",
+					executedAt: "2023-01-01T00:00:00.000Z",
+					durationMs: 100,
+					rowCount: 1,
+				},
+			];
+
+			// Mock the persistence functions
+			const { loadConnections, loadQueryHistory } = await import(
+				"../../src/utils/persistence.js"
+			);
+			(loadConnections as any).mockResolvedValue(mockConnectionsResult);
+			(loadQueryHistory as any).mockResolvedValue(mockHistory);
+
+			await effects.initializeApp(dispatch);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.StartLoading,
+			});
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetSavedConnections,
+				connections: mockConnectionsResult.connections,
+			});
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetQueryHistory,
+				history: mockHistory,
+			});
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.StopLoading,
+			});
+		});
+
+		it("handles normalization notifications", async () => {
+			const mockConnectionsResult = {
+				connections: [],
+				normalized: 2,
+				skipped: 1,
+			};
+
+			(persistence.loadConnections as any).mockResolvedValue(
+				mockConnectionsResult,
+			);
+			(persistence.loadQueryHistory as any).mockResolvedValue([]);
+			(persistence.saveConnections as any).mockResolvedValue();
+
+			await effects.initializeApp(dispatch);
+
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: ActionType.AddNotification,
+				}),
+			);
+			expect(persistence.saveConnections).toHaveBeenCalledWith([]);
+		});
+
+		it("handles initialization errors", async () => {
+			const error = new Error("Load failed");
+			(persistence.loadConnections as any).mockRejectedValue(error);
+
+			await effects.initializeApp(dispatch);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetError,
+				error: "Load failed",
+			});
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.StopLoading,
+			});
+		});
+	});
+
+	describe("executeQuery", () => {
+		it("handles no active connection", async () => {
+			const state = {
+				...initialAppState,
+				activeConnection: null,
+				queryHistory: [],
+			};
+
+			await effects.executeQuery(
+				dispatch,
+				state,
+				{
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+				},
+				"SELECT 1",
+			);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetError,
+				error: "No active connection.",
+			});
+		});
+
+		it("executes query successfully", async () => {
+			const state = {
+				...initialAppState,
+				activeConnection: {
+					id: "conn1",
+					name: "Test DB",
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+					createdAt: "2023-01-01T00:00:00.000Z",
+					updatedAt: "2023-01-01T00:00:00.000Z",
+				},
+				dbType: DBType.PostgreSQL,
+				queryHistory: [],
+			};
+
+			const mockConnection = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue({
+					rowCount: 5,
+					rows: [],
+					columns: [],
+				}),
+				close: vi.fn().mockResolvedValue(undefined),
+			};
+
+			(createDatabaseConnection as any).mockReturnValue(mockConnection as any);
+
+			await effects.executeQuery(
+				dispatch,
+				state,
+				{
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+				},
+				"SELECT * FROM users",
+			);
+
+			expect(dispatch).toHaveBeenCalledWith({ type: ActionType.StartLoading });
+			expect(mockConnection.connect).toHaveBeenCalled();
+			expect(mockConnection.query).toHaveBeenCalled();
+			expect(mockConnection.close).toHaveBeenCalled();
+			expect(dispatch).toHaveBeenCalledWith({ type: ActionType.StopLoading });
+		});
+
+		it("handles query execution errors", async () => {
+			const state = {
+				...initialAppState,
+				activeConnection: {
+					id: "conn1",
+					name: "Test DB",
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+					createdAt: "2023-01-01T00:00:00.000Z",
+					updatedAt: "2023-01-01T00:00:00.000Z",
+				},
+				dbType: DBType.PostgreSQL,
+				queryHistory: [],
+			};
+
+			const mockConnection = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockRejectedValue(new Error("Query failed")),
+				close: vi.fn().mockResolvedValue(undefined),
+			};
+
+			(createDatabaseConnection as any).mockReturnValue(mockConnection as any);
+
+			await effects.executeQuery(
+				dispatch,
+				state,
+				{
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+				},
+				"SELECT * FROM invalid_table",
+			);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetError,
+				error: "Query failed",
+			});
+			expect(dispatch).toHaveBeenCalledWith({ type: ActionType.StopLoading });
+		});
+
+		it("handles connection close errors gracefully", async () => {
+			const state = {
+				...initialAppState,
+				activeConnection: {
+					id: "conn1",
+					name: "Test DB",
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+					createdAt: "2023-01-01T00:00:00.000Z",
+					updatedAt: "2023-01-01T00:00:00.000Z",
+				},
+				dbType: DBType.PostgreSQL,
+				queryHistory: [],
+			};
+
+			const mockConnection = {
+				connect: vi.fn().mockResolvedValue(undefined),
+				query: vi.fn().mockResolvedValue({
+					rowCount: 1,
+					rows: [],
+					columns: [],
+				}),
+				close: vi.fn().mockRejectedValue(new Error("Close failed")),
+			};
+
+			(createDatabaseConnection as any).mockReturnValue(mockConnection as any);
+
+			await effects.executeQuery(
+				dispatch,
+				state,
+				{
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://example",
+				},
+				"SELECT 1",
+			);
+
+			// Should still complete successfully despite close error
+			expect(dispatch).toHaveBeenCalledWith({ type: ActionType.StopLoading });
+		});
+	});
+
+	describe("persistConnections", () => {
+		it("handles persistence errors", async () => {
+			const error = new Error("Save failed");
+			(persistence.saveConnections as any).mockRejectedValueOnce(error);
+
+			await effects.persistConnections(dispatch, []);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetError,
+				error: "Save failed",
+			});
+		});
+	});
+
+	describe("exportTableData", () => {
+		it("handles no data to export", async () => {
+			const state = {
+				...initialAppState,
+				dataRows: [],
+				columns: [],
+			};
+
+			await effects.exportTableData(dispatch, state, "csv", true);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetError,
+				error: "No data available to export.",
+			});
+		});
+
+		it("handles no columns to export", async () => {
+			const state = {
+				...initialAppState,
+				dataRows: [{ id: 1, name: "Test" }],
+				columns: [],
+			};
+
+			await effects.exportTableData(dispatch, state, "csv", true);
+
+			expect(dispatch).toHaveBeenCalledWith({
+				type: ActionType.SetError,
+				error: "No data available to export.",
+			});
 		});
 	});
 });

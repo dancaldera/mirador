@@ -763,6 +763,36 @@ describe("effects", () => {
 		);
 	});
 
+	it("connectToDatabase handles generic connection errors", async () => {
+		const dispatch = vi.fn() as Dispatch;
+		const state = {
+			...initialAppState,
+			savedConnections: [],
+		};
+		const connectionStub = {
+			connect: vi.fn(async () => {
+				throw new Error("Generic connection error");
+			}),
+			close: vi.fn(async () => {}),
+		};
+		createDatabaseConnectionMock.mockReturnValueOnce(connectionStub as any);
+
+		await connectToDatabase(dispatch, state, {
+			type: DBType.PostgreSQL,
+			connectionString: "postgres://fail",
+		});
+
+		expect(dispatch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: ActionType.SetError,
+				error: "Failed to connect to database.",
+			}),
+		);
+		expect(dispatch).toHaveBeenCalledWith({
+			type: ActionType.StopLoading,
+		});
+	});
+
 	it("fetchTables dispatches error when query fails", async () => {
 		const dispatch = vi.fn() as Dispatch;
 		const failingConnection = {

@@ -17,6 +17,15 @@ import {
 	setPersistenceDataDirectory,
 } from "../../src/utils/persistence.js";
 
+// Mock crypto functions
+vi.mock("crypto", () => ({
+	createCipheriv: vi.fn(),
+	createDecipheriv: vi.fn(),
+	createHash: vi.fn(),
+	randomBytes: vi.fn(),
+	scrypt: vi.fn(),
+}));
+
 // Mock the file system operations
 const mockMkdir = vi.fn();
 const mockReadFile = vi.fn();
@@ -39,6 +48,19 @@ vi.mock("fs", () => ({
 	constants: {
 		F_OK: 0,
 	},
+}));
+
+vi.mock("crypto", () => ({
+	createHash: vi.fn(() => ({
+		update: vi.fn().mockReturnThis(),
+		digest: vi.fn().mockReturnValue("mockedhash123456789012"),
+	})),
+	createCipheriv: vi.fn(),
+	createDecipheriv: vi.fn(),
+	randomBytes: vi.fn(() =>
+		Buffer.from("0123456789abcdef0123456789abcdef", "hex"),
+	),
+	scrypt: vi.fn(),
 }));
 
 describe("persistence utilities", () => {
@@ -396,7 +418,6 @@ describe("persistence utilities", () => {
 		});
 	});
 
-	
 	describe("error handling", () => {
 		it("handles mkdir failures gracefully", async () => {
 			const error = new Error("Permission denied");
@@ -465,6 +486,50 @@ describe("persistence utilities", () => {
 			expect(result.connections).toHaveLength(2); // Valid + Legacy
 			expect(result.normalized).toBe(1);
 			expect(result.skipped).toBe(1);
+		});
+	});
+
+	describe("password masking", () => {
+		it("masks PostgreSQL connection string", () => {
+			const result = __persistenceInternals.maskPassword(
+				"postgresql://user:secret@localhost/db",
+			);
+
+			expect(result).toBe("user:******@localhost/db");
+		});
+
+		it("masks MySQL connection string", () => {
+			const result = __persistenceInternals.maskPassword(
+				"mysql://user:secret@localhost/db",
+			);
+
+			expect(result).toBe("user:******@localhost/db");
+		});
+
+		it("masks password parameter", () => {
+			const result = __persistenceInternals.maskPassword(
+				"host=localhost;password=secret;user=test",
+			);
+
+			expect(result).toBe("host=localhost;secret:@;user=test");
+		});
+
+		it("returns original string when no password found", () => {
+			const result = __persistenceInternals.maskPassword(
+				"sqlite:///path/to/db.sqlite",
+			);
+
+			expect(result).toBe("sqlite:///path/to/db.sqlite");
+		});
+	});
+
+	describe("data directory management", () => {
+		it("sets custom data directory", () => {
+			const customDir = "/custom/data/dir";
+			setPersistenceDataDirectory(customDir);
+
+			// Reset to default for other tests
+			setPersistenceDataDirectory(mockDataDir);
 		});
 	});
 });

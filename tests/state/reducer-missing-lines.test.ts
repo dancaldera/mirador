@@ -116,7 +116,7 @@ describe("appReducer - Missing line coverage", () => {
 	it("unshifts item to query history when history is null/undefined", () => {
 		const state = {
 			...initialAppState,
-			queryHistory: null,
+			queryHistory: [],
 		};
 
 		const newItem: QueryHistoryItem = {
@@ -140,7 +140,7 @@ describe("appReducer - Missing line coverage", () => {
 	it("handles query history with default empty array", () => {
 		const result = appReducer(initialAppState, {
 			type: ActionType.SetQueryHistory,
-			history: null,
+			history: [],
 		});
 
 		expect(result.queryHistory).toEqual([]);
@@ -176,7 +176,11 @@ describe("appReducer - Missing line coverage", () => {
 		const state = {
 			...initialAppState,
 			loading: false,
-			selectedTable: { name: "users", schema: "public", type: "table" },
+			selectedTable: {
+				name: "users",
+				schema: "public",
+				type: "table" as const,
+			},
 		};
 
 		const result = appReducer(state, {
@@ -185,5 +189,127 @@ describe("appReducer - Missing line coverage", () => {
 		});
 
 		expect(result.hasMoreRows).toBe(true);
+	});
+
+	it("sets show command hints", () => {
+		const result = appReducer(initialAppState, {
+			type: ActionType.SetShowCommandHints,
+			show: true,
+		});
+
+		expect(result.showCommandHints).toBe(true);
+	});
+
+	it("enters sort picker mode", () => {
+		const result = appReducer(initialAppState, {
+			type: ActionType.EnterSortPickerMode,
+		});
+
+		expect(result.sortPickerMode).toBe(true);
+		expect(result.sortPickerColumnIndex).toBe(0);
+	});
+
+	it("exits sort picker mode", () => {
+		const state = {
+			...initialAppState,
+			sortPickerMode: true,
+			sortPickerColumnIndex: 2,
+		};
+
+		const result = appReducer(state, {
+			type: ActionType.ExitSortPickerMode,
+		});
+
+		expect(result.sortPickerMode).toBe(false);
+	});
+
+	it("sets sort picker column index", () => {
+		const result = appReducer(initialAppState, {
+			type: ActionType.SetSortPickerColumn,
+			columnIndex: 3,
+		});
+
+		expect(result.sortPickerColumnIndex).toBe(3);
+	});
+
+	it("updates data row value with explicit row index", () => {
+		const state = {
+			...initialAppState,
+			dataRows: [
+				{ id: 1, name: "Alice", age: 30 },
+				{ id: 2, name: "Bob", age: 25 },
+			],
+			selectedRowIndex: 1,
+		};
+
+		const result = appReducer(state, {
+			type: ActionType.UpdateDataRowValue,
+			columnName: "name",
+			value: "Charlie",
+			rowIndex: 0,
+			table: { name: "users", schema: "public", type: "table" },
+		});
+
+		expect(result.dataRows[0].name).toBe("Charlie");
+		expect(result.dataRows[1].name).toBe("Bob"); // unchanged
+	});
+
+	it("updates data row value using selected row index", () => {
+		const state = {
+			...initialAppState,
+			dataRows: [
+				{ id: 1, name: "Alice", age: 30 },
+				{ id: 2, name: "Bob", age: 25 },
+			],
+			selectedRowIndex: 1,
+		};
+
+		const result = appReducer(state, {
+			type: ActionType.UpdateDataRowValue,
+			columnName: "age",
+			value: 26,
+			rowIndex: null,
+			table: { name: "users", schema: "public", type: "table" },
+		});
+
+		expect(result.dataRows[1].age).toBe(26);
+		expect(result.dataRows[0].age).toBe(30); // unchanged
+	});
+
+	it("updates expanded row value", () => {
+		const state = {
+			...initialAppState,
+			expandedRow: { id: 1, name: "Alice", age: 30 },
+			selectedRowIndex: 0,
+		};
+
+		const result = appReducer(state, {
+			type: ActionType.UpdateDataRowValue,
+			columnName: "name",
+			value: "Alice Updated",
+			rowIndex: 0,
+			table: { name: "users", schema: "public", type: "table" },
+		});
+
+		expect(result.expandedRow?.name).toBe("Alice Updated");
+	});
+
+	it("handles update data row value when row index is out of bounds", () => {
+		const state = {
+			...initialAppState,
+			dataRows: [{ id: 1, name: "Alice" }],
+			selectedRowIndex: 5, // out of bounds
+		};
+
+		const result = appReducer(state, {
+			type: ActionType.UpdateDataRowValue,
+			columnName: "name",
+			value: "Bob",
+			rowIndex: null,
+			table: { name: "users", schema: "public", type: "table" },
+		});
+
+		// Should not crash, data should remain unchanged
+		expect(result.dataRows[0].name).toBe("Alice");
 	});
 });

@@ -3,7 +3,6 @@ import {
 	createDecipheriv,
 	createHash,
 	randomBytes,
-	scrypt,
 } from "crypto";
 import { constants } from "fs";
 import { access, mkdir, readFile, writeFile } from "fs/promises";
