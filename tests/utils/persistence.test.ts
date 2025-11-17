@@ -469,6 +469,24 @@ describe("persistence utilities", () => {
 				"utf-8",
 			);
 		});
+
+		it("uses debounced writer when not flushing", async () => {
+			const history: QueryHistoryItem[] = [
+				{
+					id: "1",
+					connectionId: "conn1",
+					query: "SELECT * FROM users",
+					executedAt: "2023-01-01T00:00:00.000Z",
+					durationMs: 100,
+					rowCount: 10,
+				},
+			];
+
+			await saveQueryHistory(history, false);
+
+			// Should not write immediately when flush=false
+			expect(mockWriteFile).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("error handling", () => {
@@ -756,6 +774,250 @@ describe("persistence utilities", () => {
 
 			// Reset to default for other tests
 			setPersistenceDataDirectory(mockDataDir);
+		});
+	});
+
+	describe("process exit handling", () => {
+		it("flushes writers on process beforeExit", async () => {
+			const connections: ConnectionInfo[] = [
+				{
+					id: "1",
+					name: "Test DB",
+					type: DBType.PostgreSQL,
+					connectionString: "postgres://localhost/test",
+					createdAt: "2023-01-01T00:00:00.000Z",
+					updatedAt: "2023-01-01T00:00:00.000Z",
+				},
+			];
+
+			// Save without flushing to use debounced writer
+			await saveConnections(connections, false);
+
+			// Trigger beforeExit event
+			process.emit("beforeExit", 0);
+
+			// Wait for debounced writes to complete
+			await new Promise((resolve) => setTimeout(resolve, 600));
+
+			expect(mockWriteFile).toHaveBeenCalledWith(
+				path.join(mockDataDir, "connections.json"),
+				expect.stringContaining("Test DB"),
+				"utf-8",
+			);
+		});
+	});
+
+	describe("password restoration", () => {
+		it("restores password in PostgreSQL connection string", () => {
+			const masked = "postgresql://user:********@localhost/db";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("postgresql://user:secret123@localhost/db");
+		});
+
+		it("restores password in postgres connection string", () => {
+			const masked = "postgres://user:********@localhost/db";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("postgres://user:secret123@localhost/db");
+		});
+
+		it("restores password in postgres format without protocol", () => {
+			const masked = "postgres:user:********@localhost/db";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("postgres:user:secret123@localhost/db");
+		});
+
+		it("restores password in postgres format with default user", () => {
+			const masked = "postgres:********@localhost/db";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("postgresql://postgres:secret123@localhost/db");
+		});
+
+		it("restores password in MySQL connection string", () => {
+			const masked = "mysql://user:********@localhost/db";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("mysql://user:secret123@localhost/db");
+		});
+
+		it("restores password in parameter format", () => {
+			const masked = "host=localhost;password=********;user=test";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("host=localhost;password=secret123;user=test");
+		});
+
+		it("restores password in generic format", () => {
+			const masked = "//user:********@localhost/db";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				masked,
+				password,
+			);
+
+			expect(result).toBe("//user:secret123@localhost/db");
+		});
+
+		it("returns original string when no masked password found", () => {
+			const original = "sqlite:///path/to/db.sqlite";
+			const password = "secret123";
+
+			const result = __persistenceInternals.restorePasswordToConnectionString(
+				original,
+				password,
+			);
+
+			expect(result).toBe(original);
+		});
+	});
+
+	describe("connection normalization edge cases", () => {
+		it("returns null for invalid legacy connection with missing fields", () => {
+			const result = __persistenceInternals.normalizeConnectionEntry({
+				name: "Broken",
+				// Missing driver and connection_str
+			});
+
+			expect(result).toBeNull();
+		});
+
+		it("returns null for non-object entry", () => {
+			const result =
+				__persistenceInternals.normalizeConnectionEntry("not an object");
+
+			expect(result).toBeNull();
+		});
+
+		it("returns null for null entry", () => {
+			const result = __persistenceInternals.normalizeConnectionEntry(null);
+
+			expect(result).toBeNull();
+		});
+
+		it("returns null for undefined entry", () => {
+			const result = __persistenceInternals.normalizeConnectionEntry(undefined);
+
+			expect(result).toBeNull();
+		});
+	});
+
+	describe("decryption error handling", () => {
+		it("skips connection when password decryption fails", async () => {
+			// Mock decryption to fail
+			const decryptSpy = vi
+				.spyOn(__persistenceInternals, "decryptPassword")
+				.mockRejectedValue(new Error("Decryption failed"));
+
+			const encryptedConnection = {
+				id: "1",
+				name: "Test DB",
+				type: DBType.PostgreSQL,
+				connectionString: "postgres://user:********@localhost/db",
+				createdAt: "2023-01-01T00:00:00.000Z",
+				updatedAt: "2023-01-01T00:00:00.000Z",
+				encryptedPassword: {
+					encrypted: "encrypted",
+					iv: "0123456789abcdef",
+					tag: "746167313233",
+				},
+			};
+
+			mockReadFile.mockResolvedValue(JSON.stringify([encryptedConnection]));
+
+			const result = await loadConnections();
+
+			expect(result.connections).toEqual([]);
+			expect(result.skipped).toBe(1);
+
+			decryptSpy.mockRestore();
+		});
+
+		it("handles unexpected errors during connection processing", async () => {
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+			// Mock the connection schema to succeed
+			const schemaSpy = vi
+				.spyOn(__persistenceInternals.connectionSchema, "safeParse")
+				.mockReturnValue({
+					success: true,
+					data: {
+						id: "1",
+						name: "Test DB",
+						type: DBType.PostgreSQL,
+						connectionString: "postgres://localhost/test",
+						createdAt: "2023-01-01T00:00:00.000Z",
+						updatedAt: "2023-01-01T00:00:00.000Z",
+					},
+				});
+
+			// Mock Array.prototype.push to throw an error
+			const originalPush = Array.prototype.push;
+			Array.prototype.push = function (...items) {
+				throw new Error("Unexpected error during array push");
+			};
+
+			try {
+				const connectionData = [
+					{
+						id: "1",
+						name: "Test DB",
+						type: DBType.PostgreSQL,
+						connectionString: "postgres://localhost/test",
+						createdAt: "2023-01-01T00:00:00.000Z",
+						updatedAt: "2023-01-01T00:00:00.000Z",
+					},
+				];
+
+				mockReadFile.mockResolvedValue(JSON.stringify(connectionData));
+
+				const result = await loadConnections();
+
+				expect(result.connections).toEqual([]);
+				expect(result.skipped).toBe(1);
+				expect(warnSpy).toHaveBeenCalledWith(
+					"Error processing connection entry at index 0:",
+					expect.any(Error),
+				);
+			} finally {
+				// Restore the original push method
+				Array.prototype.push = originalPush;
+				warnSpy.mockRestore();
+				schemaSpy.mockRestore();
+			}
 		});
 	});
 });

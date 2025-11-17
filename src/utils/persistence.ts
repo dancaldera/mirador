@@ -608,4 +608,5 @@ export const __persistenceInternals = {
 	decryptPassword,
 	connectionsWriter,
 	queryHistoryWriter,
+	restorePasswordToConnectionString,
 } as const;

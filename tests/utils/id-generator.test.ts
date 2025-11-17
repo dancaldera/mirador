@@ -105,6 +105,14 @@ describe("id-generator utilities", () => {
 
 			expect(result).toBe("any-id");
 		});
+
+		it("should handle loadConnections errors in isConnectionIdUnique", async () => {
+			mockLoadConnections.mockRejectedValue(new Error("Load failed"));
+
+			const result = await isConnectionIdUnique("any-id");
+
+			expect(result).toBe(true); // Should assume unique if can't load
+		});
 	});
 
 	describe("isConnectionIdUnique", () => {
@@ -586,6 +594,14 @@ describe("id-generator utilities", () => {
 			);
 
 			expect(result.isValid).toBe(true);
+		});
+
+		it("should handle loadConnections failure gracefully", async () => {
+			mockLoadConnections.mockRejectedValue(new Error("Load failed"));
+
+			const result = await validateConnectionNameComplete("Any Name");
+
+			expect(result.isValid).toBe(true); // Should assume unique if can't load
 		});
 	});
 });

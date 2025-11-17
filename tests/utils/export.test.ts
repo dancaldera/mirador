@@ -778,4 +778,21 @@ describe("streamToJson", () => {
 		expect(fullContent).toContain("rowCount");
 		expect(fullContent).toContain("0");
 	});
+
+	it("streams large dataset in chunks", async () => {
+		const largeData: DataRow[] = Array.from({ length: 150 }, (_, i) => ({
+			id: i + 1,
+			name: `User ${i + 1}`,
+		}));
+
+		const chunks: string[] = [];
+		for await (const chunk of streamToJson(largeData, mockColumns, 50)) {
+			chunks.push(chunk);
+		}
+
+		const fullContent = chunks.join("");
+		expect(fullContent).toContain('"id": 1');
+		expect(fullContent).toContain('"id": 150');
+		expect(chunks.length).toBeGreaterThan(1); // Should be chunked
+	});
 });
