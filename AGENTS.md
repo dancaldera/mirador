@@ -240,6 +240,7 @@ seerdb --headless --connection-id "QvdD72rW6TEL1cSdoPOPP" --query "SELECT table_
 2. **Instruct users to run connection commands locally**
 3. **Use saved connections** that don't expose credentials
 4. **Use passwordless authentication** when possible (SSH keys, integrated auth)
+5. **Update connections directly** in `~/.seerdb/connections.json` if a connection cannot be accessed
 
 ### Example Safe Instructions
 
