@@ -10,8 +10,8 @@
 	"scripts": {
 		"dev": "bun --watch src/index.tsx",
 		"build": "bun run build:bundle && bun run build:compile",
-		"build:bundle": "esbuild src/index.tsx --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --minify --external:react-devtools-core --external:bun:sqlite",
-		"build:compile": "mkdir -p dist && bun build src/index.tsx --compile --outfile dist/seerdb --target bun --minify --external react-devtools-core --external bun:sqlite --loader .wasm=file && cp node_modules/yoga-wasm-web/dist/yoga.wasm dist/ && bun run build:wrapper",
+		"build:bundle": "esbuild src/index.tsx --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --minify --external:bun:sqlite",
+		"build:compile": "mkdir -p dist && bun build src/index.tsx --compile --outfile dist/seerdb --target bun --minify --external bun:sqlite --loader .wasm=file && cp node_modules/yoga-wasm-web/dist/yoga.wasm dist/ && bun run build:wrapper",
 		"build:wrapper": "echo '#!/usr/bin/env bash\n# Wrapper script for SeerDB executable\nSCRIPT_DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" && pwd )\"\ncd \"$SCRIPT_DIR\" && exec ./seerdb \"$@\"' > dist/seerdb.sh && chmod +x dist/seerdb.sh",
 		"build:exe": "bun run build:compile",
 		"start": "bun dist/index.js",
@@ -59,7 +59,7 @@
 		"@types/react": "^18.2.46",
 		"bun-types": "^1.3.2",
 		"esbuild": "^0.27.0",
-		"react-devtools-core": "^7.0.1",
+
 		"typescript": "^5.3.3"
 	}
 }
