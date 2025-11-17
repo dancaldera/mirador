@@ -10,6 +10,49 @@ SeerDB provides multiple interfaces for AI agents to safely interact with databa
 2. **API Mode** - JSON-based stdin/stdout protocol for interactive control
 3. **Headless Mode** - Command-line execution with JSON output for automation
 
+**🚀 TOON Format (Recommended)**: SeerDB uses TOON (Token-Oriented Object Notation) as the default format for AI agent data exchange. TOON provides **30-60% fewer tokens** than JSON while maintaining full compatibility and adding LLM-friendly structure validation.
+
+## TOON Format for AI Agents
+
+TOON (Token-Oriented Object Notation) is SeerDB's default format for AI agent data exchange, optimized for LLM prompts:
+
+### Why TOON?
+
+- **Token Efficient**: 30-60% fewer tokens than JSON for uniform data arrays
+- **LLM-Friendly**: Explicit array lengths `[N]` and field declarations `{fields}` enable validation
+- **Schema Aware**: Column metadata helps models understand data structure
+- **Compact Arrays**: Tabular format for uniform object arrays
+
+### TOON Export Methods
+
+```typescript
+const agent = createAgent();
+await agent.connect(config);
+
+// Export in TOON format (default for agents)
+const result = await agent.query("SELECT * FROM users LIMIT 10");
+const toonData = await agent.exportData(result, "toon"); // Default format
+
+// Direct table export in TOON
+const tableToon = await agent.exportTableToToon("products", {
+  limit: 100,
+  includeMetadata: true
+});
+```
+
+### TOON vs JSON Comparison
+
+**JSON (verbose)**:
+```json
+{"data":[{"id":1,"name":"Alice","role":"admin"}]}
+```
+
+**TOON (compact)**:
+```
+data[1]{id,name,role}:
+  1,Alice,admin
+```
+
 ## Quick Start
 
 ### Programmatic Interface (Recommended)
@@ -433,6 +476,8 @@ import type {
 - `getTableData(tableName, options)` - Safe table browsing
 - `getUsersSample(limit?)` - Safe user sampling
 - `transaction(queries)` - Execute multiple queries as transaction
+- `exportData(result, format="toon")` - Export query results in TOON/JSON/CSV formats
+- `exportTableToToon(tableName, options)` - Direct table export in TOON format
 - `isConnected()` - Check connection status
 
 ## Get Help

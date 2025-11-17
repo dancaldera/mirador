@@ -68,19 +68,27 @@ seerdb
 
 ### AI Agent Quick Start
 
+**🚀 TOON Format (Default)**: SeerDB uses TOON (Token-Oriented Object Notation) as the default format for AI agent data exchange. TOON provides **30-60% fewer tokens** than JSON while maintaining full compatibility.
+
 **1. Install dependencies:**
 ```bash
 bun install
 ```
 
-**2. Use the programmatic API:**
+**2. Use the programmatic API with TOON format:**
 ```typescript
 import { createAgent } from "seerdb/agent-api";
 
 const agent = createAgent();
 await agent.connect({ type: "postgresql", host: "localhost", database: "mydb" });
+
+// Export data in TOON format (default for agents)
 const result = await agent.query("SELECT * FROM users LIMIT 10");
-console.log(result.rows);
+const toonData = await agent.exportData(result, "toon"); // 30-60% fewer tokens than JSON
+console.log(toonData);
+
+// Direct table export in TOON
+const tableToon = await agent.exportTableToToon("products", { limit: 100 });
 await agent.disconnect();
 ```
 
@@ -95,7 +103,7 @@ seerdb --api
 # Then send: {"type": "connect", "payload": {"type": "postgresql", "connectionString": "..."}}
 ```
 
-See [AGENTS.md](./AGENTS.md) for complete AI agent documentation.
+See [AGENTS.md](./AGENTS.md) for complete AI agent documentation and TOON format details.
 
 ## Usage
 

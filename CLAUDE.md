@@ -178,7 +178,7 @@ Key state patterns:
 
 ## AI Agent Integration
 
-SeerDB includes comprehensive AI agent support for programmatic database interaction.
+SeerDB includes comprehensive AI agent support for programmatic database interaction with **TOON format optimization**.
 
 **Important**: If asked to run a command of seerdb, first use `seerdb -h` and `seerdb --agent-help` to gain context about available options and usage.
 
@@ -186,6 +186,7 @@ SeerDB includes comprehensive AI agent support for programmatic database interac
 
 Key features for AI agents:
 - **Programmatic Agent API** - TypeScript/JavaScript interface
+- **TOON Format (Default)** - Token-efficient format optimized for LLM prompts (30-60% fewer tokens than JSON)
 - **API Mode** - JSON-based stdin/stdout protocol
 - **Headless Mode** - Command-line execution with JSON output
 - **Safety Guardrails** - Automatic query limits and dangerous operation warnings
