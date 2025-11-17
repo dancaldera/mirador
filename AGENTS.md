@@ -1,5 +1,7 @@
 # SeerDB AI Agent Documentation
 
+**🤖 This documentation is specifically for AI Agents.** It contains the rules, guidelines, and technical specifications that AI agents must follow when interacting with SeerDB databases.
+
 This guide explains how AI agents can programmatically interact with SeerDB, the terminal-based database explorer.
 
 ## Overview
@@ -539,5 +541,7 @@ For more information about SeerDB agent capabilities:
 seerdb --agent-help    # Show this help information
 seerdb -h              # Show all command line options
 ```
+
+**🤖 End of AI Agent Documentation.** These rules and guidelines are mandatory for all AI agent interactions with SeerDB. Always prioritize security, use TOON format for data exchange, and follow the safety protocols outlined in this document.
 
 See the project documentation for complete setup and usage instructions.
