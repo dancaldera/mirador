@@ -1,4 +1,4 @@
-import { createInterface } from "node:readline";
+import { createInterface } from "readline";
 
 export const createReadlineInterface = () => {
 	return createInterface({

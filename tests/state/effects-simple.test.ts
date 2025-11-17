@@ -16,7 +16,7 @@ const mockReadFile = vi.fn();
 const mockWriteFile = vi.fn();
 const mockAccess = vi.fn();
 
-vi.mock("node:fs/promises", () => ({
+vi.mock("fs/promises", () => ({
 	mkdir: mockMkdir,
 	readFile: mockReadFile,
 	writeFile: mockWriteFile,

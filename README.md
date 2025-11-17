@@ -6,7 +6,7 @@
 
 SeerDB is a fast terminal tool for exploring databases. Navigate with your keyboard, run queries, and manage connections with a beautiful text interface.
 
-Built with TypeScript, React (Ink), and Bun for maximum performance.
+Built with TypeScript, React (Ink), and Bun native modules for maximum performance.
 
 ## ✨ Features
 
@@ -25,7 +25,6 @@ Built with TypeScript, React (Ink), and Bun for maximum performance.
 ### Prerequisites
 
 - [Bun](https://bun.sh) 1.0+ installed
-- Node.js 18+ (optional, for compatibility)
 
 ### Option 1: Clone and Build
 
@@ -273,7 +272,7 @@ export SEERDB_CONNECTION_TIMEOUT=30
 
 ## 🏗️ Technology Stack
 
-- **Runtime**: Node.js 18+ with ES Modules
+- **Runtime**: Bun 1.0+ with native modules
 - **Language**: TypeScript 5.3+ with strict typing
 - **UI Framework**: [Ink](https://github.com/vadimdemedes/ink) (React for terminal applications)
 - **State Management**: React Context + useReducer with [Immer](https://immerjs.github.io/immer/)
@@ -283,7 +282,7 @@ export SEERDB_CONNECTION_TIMEOUT=30
   - SQLite: [`bun:sqlite`](https://bun.sh/docs/api/sqlite)
 - **Build Tools**: [esbuild](https://esbuild.github.io/) + [Bun](https://bun.sh)
 - **Validation**: [Zod](https://zod.dev/) for runtime type validation
-- **Testing**: [Vitest](https://vitest.dev/)
+- **Testing**: [Bun Test](https://bun.sh/docs/cli/test)
 - **Code Quality**: [Biome](https://biomejs.dev/)
 
 ## 🔒 Security Features

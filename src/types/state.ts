@@ -109,8 +109,6 @@ export interface AppState {
 	selectedRowIndex: number | null;
 	expandedRow: DataRow | null;
 	columnVisibilityMode: ColumnVisibilityMode;
-	refreshingTableKey: string | null;
-	refreshTimestamps: Record<string, number>;
 	notifications: Notification[];
 	queryHistory: QueryHistoryItem[];
 	loading: boolean;
@@ -146,7 +144,6 @@ export const initialAppState: AppState = {
 	expandedRow: null,
 	columnVisibilityMode: "smart",
 	refreshingTableKey: null,
-	refreshTimestamps: {},
 	notifications: [],
 	queryHistory: [],
 	loading: false,

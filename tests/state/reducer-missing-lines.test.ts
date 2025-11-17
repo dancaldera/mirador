@@ -178,7 +178,6 @@ describe("appReducer - Missing line coverage", () => {
 			loading: false,
 			refreshingTableKey: "public|users",
 			selectedTable: { name: "users", schema: "public", type: "table" },
-			tableCache: {
 				"public|users": {
 					columns: [],
 					rows: [],

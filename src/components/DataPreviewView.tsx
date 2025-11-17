@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ActionType } from "../state/actions.js";
 import { useAppDispatch, useAppState } from "../state/context.js";
 import {
-	clearConnectionCache,
 	exportTableData,
 	fetchColumns,
 	fetchTableData,
@@ -34,11 +33,6 @@ const TABLE_MARGIN = 4;
 const BORDER_WIDTH = 2;
 const INDICATOR_WIDTH = 2;
 
-// Simple function to create a cache key for a table
-const tableCacheKey = (table: TableInfo | null): string | null => {
-	if (!table) return null;
-	return table.schema ? `${table.schema}.${table.name}` : table.name;
-};
 
 const DataPreviewViewComponent: React.FC = () => {
 	const dispatch = useAppDispatch();
@@ -220,8 +214,6 @@ const DataPreviewViewComponent: React.FC = () => {
 
 		// Loading status
 		if (state.loading) parts.push("Loading");
-		if (state.refreshingTableKey === tableCacheKey(table))
-			parts.push("Refreshing");
 
 		return parts.join(" • ");
 	}, [
@@ -229,8 +221,6 @@ const DataPreviewViewComponent: React.FC = () => {
 		state.currentOffset,
 		state.sortConfig,
 		state.loading,
-		state.refreshingTableKey,
-		tableCacheKey(table),
 		fixedPKColumns.length,
 		navigableColumns.length,
 		columnStartIndex,
@@ -444,11 +434,7 @@ const DataPreviewViewComponent: React.FC = () => {
 			return;
 		}
 
-		if ((input === "g" || input === "G") && !state.loading) {
-			void clearConnectionCache(dispatch, state);
-			return;
-		}
-
+		
 		if (input === "n" && state.hasMoreRows && !state.loading) {
 			void fetchTableData(
 				dispatch,

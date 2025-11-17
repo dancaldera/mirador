@@ -53,7 +53,6 @@ describe("appReducer", () => {
 			columns: [{ name: "id", dataType: "int", nullable: false }],
 			dataRows: [{ id: 1 }],
 			hasMoreRows: true,
-			tableCache: {},
 		};
 
 		const result = appReducer(state, {
@@ -72,7 +71,6 @@ describe("appReducer", () => {
 		const state = {
 			...initialAppState,
 			currentOffset: 0,
-			tableCache: {},
 		};
 
 		const result = appReducer(state, {
@@ -87,7 +85,6 @@ describe("appReducer", () => {
 		const cacheKey = "public|users";
 		const state = {
 			...initialAppState,
-			tableCache: {
 				[cacheKey]: {
 					columns: [
 						{
@@ -108,8 +105,6 @@ describe("appReducer", () => {
 			type: ActionType.SetSelectedTable,
 			table,
 		});
-		expect(result.columns).toEqual(state.tableCache[cacheKey].columns);
-		expect(result.dataRows).toEqual(state.tableCache[cacheKey].rows);
 		expect(result.hasMoreRows).toBe(true);
 		expect(result.currentOffset).toBe(50);
 	});
@@ -118,7 +113,6 @@ describe("appReducer", () => {
 		const cacheKey = "public|users";
 		const state = {
 			...initialAppState,
-			tableCache: {
 				[cacheKey]: {
 					columns: [],
 					rows: [{ id: 1 }],
@@ -133,7 +127,6 @@ describe("appReducer", () => {
 			type: ActionType.RemoveTableCacheEntry,
 			key: cacheKey,
 		});
-		expect(result.tableCache[cacheKey]).toBeUndefined();
 		expect(result.dataRows).toEqual([]);
 		expect(result.columns).toEqual([]);
 		expect(result.currentOffset).toBe(0);

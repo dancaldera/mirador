@@ -1,4 +1,4 @@
-import { parseArgs } from "node:util";
+import { parseArgs } from "util";
 
 export interface CliArgs {
 	/** Run in API mode for programmatic control */

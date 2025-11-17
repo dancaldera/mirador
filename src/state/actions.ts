@@ -41,8 +41,6 @@ export enum ActionType {
 	SetSelectedRowIndex = "SET_SELECTED_ROW_INDEX",
 	SetExpandedRow = "SET_EXPANDED_ROW",
 	SetColumnVisibilityMode = "SET_COLUMN_VISIBILITY_MODE",
-	SetRefreshingTable = "SET_REFRESHING_TABLE",
-	SetRefreshTimestamp = "SET_REFRESH_TIMESTAMP",
 	AddNotification = "ADD_NOTIFICATION",
 	RemoveNotification = "REMOVE_NOTIFICATION",
 	SetQueryHistory = "SET_QUERY_HISTORY",
@@ -97,8 +95,6 @@ export type AppAction =
 	| { type: ActionType.SetSelectedRowIndex; index: number | null }
 	| { type: ActionType.SetExpandedRow; row: DataRow | null }
 	| { type: ActionType.SetColumnVisibilityMode; mode: ColumnVisibilityMode }
-	| { type: ActionType.SetRefreshingTable; key: string | null }
-	| { type: ActionType.SetRefreshTimestamp; key: string; timestamp: number }
 	| { type: ActionType.AddNotification; notification: Notification }
 	| { type: ActionType.RemoveNotification; id: string }
 	| { type: ActionType.SetQueryHistory; history: QueryHistoryItem[] }

@@ -5,7 +5,7 @@ import { ActionType, type AppAction } from "./actions.js";
 // Simple function to create a cache key for a table
 const tableCacheKey = (table: AppState["selectedTable"]): string | null => {
 	if (!table) return null;
-	return table.schema ? `${table.schema}.${table.name}` : table.name;
+	return table.schema ? `${table.schema}|${table.name}` : table.name;
 };
 
 function resetSearchState(draft: AppState): void {
@@ -162,10 +162,6 @@ export function appReducer(
 				draft.dataRows = action.rows;
 				break;
 
-			case ActionType.SetRefreshingTable:
-				draft.refreshingTableKey = action.key;
-				break;
-
 			case ActionType.SetHasMoreRows:
 				draft.hasMoreRows = action.hasMore;
 				break;
@@ -187,10 +183,6 @@ export function appReducer(
 
 			case ActionType.SetColumnVisibilityMode:
 				draft.columnVisibilityMode = action.mode;
-				break;
-
-			case ActionType.SetRefreshTimestamp:
-				draft.refreshTimestamps[action.key] = action.timestamp;
 				break;
 
 			case ActionType.AddNotification:

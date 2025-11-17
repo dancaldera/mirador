@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "bun:test";
-import { constants } from "node:fs";
-import path from "node:path";
+import { constants } from "fs";
+import path from "path";
 import type {
 	ColumnInfo,
 	ConnectionInfo,
 	QueryHistoryItem,
-	TableCacheEntry,
 } from "../../src/types/state.js";
 import { DBType } from "../../src/types/state.js";
 import {
@@ -13,10 +12,8 @@ import {
 	type ConnectionsLoadResult,
 	loadConnections,
 	loadQueryHistory,
-	loadTableCache,
 	saveConnections,
 	saveQueryHistory,
-	saveTableCache,
 	setPersistenceDataDirectory,
 } from "../../src/utils/persistence.js";
 
@@ -27,18 +24,18 @@ const mockWriteFile = vi.fn();
 const mockAccess = vi.fn();
 const mockHomedir = vi.fn(() => "/home/user");
 
-vi.mock("node:fs/promises", () => ({
+vi.mock("fs/promises", () => ({
 	mkdir: mockMkdir,
 	readFile: mockReadFile,
 	writeFile: mockWriteFile,
 	access: mockAccess,
 }));
 
-vi.mock("node:os", () => ({
+vi.mock("os", () => ({
 	homedir: mockHomedir,
 }));
 
-vi.mock("node:fs", () => ({
+vi.mock("fs", () => ({
 	constants: {
 		F_OK: 0,
 	},
@@ -399,227 +396,7 @@ describe("persistence utilities", () => {
 		});
 	});
 
-	describe("loadTableCache", () => {
-		it("returns empty cache when file doesn't exist", async () => {
-			mockAccess.mockRejectedValue(new Error("File not found"));
-
-			const result = await loadTableCache("conn1");
-
-			expect(result).toEqual({});
-		});
-
-		it("returns empty cache when file is empty", async () => {
-			mockReadFile.mockResolvedValue("");
-
-			const result = await loadTableCache("conn1");
-
-			expect(result).toEqual({});
-		});
-
-		it("loads cache for specific connection", async () => {
-			const mockCache = {
-				conn1: {
-					"public|users": {
-						columns: [
-							{ name: "id", dataType: "integer", nullable: false },
-							{ name: "name", dataType: "varchar", nullable: false },
-						],
-						rows: [{ id: 1, name: "Alice" }],
-						hasMore: true,
-						offset: 0,
-					},
-				},
-				conn2: {
-					"public|posts": {
-						columns: [
-							{ name: "id", dataType: "integer", nullable: false },
-							{ name: "title", dataType: "varchar", nullable: false },
-						],
-						rows: [{ id: 1, title: "Hello World" }],
-						hasMore: false,
-						offset: 10,
-					},
-				},
-			};
-			mockReadFile.mockResolvedValue(JSON.stringify(mockCache));
-
-			const result = await loadTableCache("conn1");
-
-			expect(result).toEqual(mockCache.conn1);
-		});
-
-		it("returns empty cache for unknown connection", async () => {
-			const mockCache = {
-				conn1: {
-					"public|users": {
-						columns: [],
-						rows: [],
-						hasMore: false,
-						offset: 0,
-					},
-				},
-			};
-			mockReadFile.mockResolvedValue(JSON.stringify(mockCache));
-
-			const result = await loadTableCache("unknown");
-
-			expect(result).toEqual({});
-		});
-
-		it("handles invalid cache file format", async () => {
-			mockReadFile.mockResolvedValue("invalid json");
-
-			const result = await loadTableCache("conn1");
-
-			expect(result).toEqual({});
-		});
-
-		it("handles non-object cache data", async () => {
-			mockReadFile.mockResolvedValue("null");
-
-			const result = await loadTableCache("conn1");
-
-			expect(result).toEqual({});
-		});
-
-		it("skips invalid cache entries", async () => {
-			const mockCache = {
-				conn1: {
-					"public|users": {
-						columns: [{ name: "id", dataType: "integer", nullable: false }],
-						rows: [{ id: 1 }],
-						hasMore: true,
-						offset: 0,
-					},
-					"invalid|entry": {
-						// Missing required fields
-						columns: [],
-						// Missing rows, hasMore, offset
-					},
-				},
-			};
-			mockReadFile.mockResolvedValue(JSON.stringify(mockCache));
-
-			const result = await loadTableCache("conn1");
-
-			expect(Object.keys(result)).toHaveLength(1);
-			expect(result).toHaveProperty("public|users");
-		});
-
-		it("skips invalid connection cache objects", async () => {
-			const mockCache = {
-				conn1: "not an object",
-				conn2: {
-					"public|users": {
-						columns: [],
-						rows: [],
-						hasMore: false,
-						offset: 0,
-					},
-				},
-			};
-			mockReadFile.mockResolvedValue(JSON.stringify(mockCache));
-
-			const result = await loadTableCache("conn1");
-
-			expect(result).toEqual({});
-		});
-	});
-
-	describe("saveTableCache", () => {
-		it("saves cache for specific connection", async () => {
-			const existingCache = {
-				conn1: {
-					"public|users": {
-						columns: [],
-						rows: [],
-						hasMore: false,
-						offset: 0,
-					},
-				},
-			};
-			const newCache: Record<string, TableCacheEntry> = {
-				"public|posts": {
-					columns: [],
-					rows: [],
-					hasMore: false,
-					offset: 0,
-				},
-			};
-
-			mockReadFile.mockResolvedValue(JSON.stringify(existingCache));
-
-			await saveTableCache("conn2", newCache, true);
-
-			const expectedCache = {
-				...existingCache,
-				conn2: newCache,
-			};
-
-			expect(mockWriteFile).toHaveBeenCalledWith(
-				path.join(mockDataDir, "table-cache.json"),
-				JSON.stringify(expectedCache, null, 2),
-				"utf-8",
-			);
-		});
-
-		it("overwrites existing cache for connection", async () => {
-			const existingCache = {
-				conn1: {
-					"public|users": {
-						columns: [],
-						rows: [],
-						hasMore: false,
-						offset: 0,
-					},
-				},
-			};
-			const newCache: Record<string, TableCacheEntry> = {
-				"public|posts": {
-					columns: [],
-					rows: [],
-					hasMore: false,
-					offset: 0,
-				},
-			};
-
-			mockReadFile.mockResolvedValue(JSON.stringify(existingCache));
-
-			await saveTableCache("conn1", newCache, true);
-
-			const expectedCache = {
-				conn1: newCache,
-			};
-
-			expect(mockWriteFile).toHaveBeenCalledWith(
-				path.join(mockDataDir, "table-cache.json"),
-				JSON.stringify(expectedCache, null, 2),
-				"utf-8",
-			);
-		});
-
-		it("creates new cache file when none exists", async () => {
-			mockAccess.mockRejectedValue(new Error("File not found"));
-
-			const newCache: Record<string, TableCacheEntry> = {
-				"public|users": {
-					columns: [],
-					rows: [],
-					hasMore: false,
-					offset: 0,
-				},
-			};
-
-			await saveTableCache("conn1", newCache, true);
-
-			expect(mockWriteFile).toHaveBeenCalledWith(
-				path.join(mockDataDir, "table-cache.json"),
-				JSON.stringify({ conn1: newCache }, null, 2),
-				"utf-8",
-			);
-		});
-	});
-
+	
 	describe("error handling", () => {
 		it("handles mkdir failures gracefully", async () => {
 			const error = new Error("Permission denied");

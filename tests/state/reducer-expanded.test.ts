@@ -117,7 +117,6 @@ describe("appReducer - Expanded Coverage", () => {
 				dataRows: [{ id: 1 }],
 				hasMoreRows: true,
 				currentOffset: 10,
-				tableCache: { "public|users": {} as any },
 				refreshingTableKey: "public|users",
 				refreshTimestamps: { "public|users": Date.now() },
 				notifications: [{ id: "1", message: "Test", level: "info" }],
@@ -135,7 +134,6 @@ describe("appReducer - Expanded Coverage", () => {
 			expect(result.dataRows).toEqual([]);
 			expect(result.hasMoreRows).toBe(false);
 			expect(result.currentOffset).toBe(0);
-			expect(result.tableCache).toEqual({});
 			expect(result.refreshingTableKey).toBeNull();
 			expect(result.refreshTimestamps).toEqual({});
 			expect(result.notifications).toEqual([]);
@@ -261,7 +259,6 @@ describe("appReducer - Expanded Coverage", () => {
 				dataRows: [{ id: 1, name: "Alice" }],
 				hasMoreRows: true,
 				currentOffset: 10,
-				tableCache: {},
 			};
 
 			const columns: ColumnInfo[] = [
@@ -275,7 +272,6 @@ describe("appReducer - Expanded Coverage", () => {
 			});
 
 			expect(result.columns).toEqual(columns);
-			expect(result.tableCache["public|users"]).toEqual({
 				columns,
 				rows: [{ id: 1, name: "Alice" }],
 				hasMore: true,
@@ -313,7 +309,6 @@ describe("appReducer - Expanded Coverage", () => {
 				...initialAppState,
 				selectedTable: { name: "users", schema: "public", type: "table" },
 				columns: [{ name: "id", dataType: "integer", nullable: false }],
-				tableCache: {},
 				refreshingTableKey: "public|users",
 			};
 
@@ -328,7 +323,6 @@ describe("appReducer - Expanded Coverage", () => {
 			});
 
 			expect(result.dataRows).toEqual(rows);
-			expect(result.tableCache["public|users"]).toEqual({
 				columns: [{ name: "id", dataType: "integer", nullable: false }],
 				rows,
 				hasMore: false,
@@ -343,7 +337,6 @@ describe("appReducer - Expanded Coverage", () => {
 				selectedTable: { name: "users", schema: "public", type: "table" },
 				columns: [{ name: "id", dataType: "integer", nullable: false }],
 				dataRows: [{ id: 1 }],
-				tableCache: {},
 			};
 
 			const result = appReducer(state, {
@@ -352,7 +345,6 @@ describe("appReducer - Expanded Coverage", () => {
 			});
 
 			expect(result.hasMoreRows).toBe(true);
-			expect(result.tableCache["public|users"]).toEqual({
 				columns: [{ name: "id", dataType: "integer", nullable: false }],
 				rows: [{ id: 1 }],
 				hasMore: true,
@@ -366,7 +358,6 @@ describe("appReducer - Expanded Coverage", () => {
 				selectedTable: { name: "users", schema: "public", type: "table" },
 				selectedRowIndex: 5,
 				expandedRow: { id: 5, name: "Test" },
-				tableCache: {},
 			};
 
 			const result = appReducer(state, {
@@ -377,7 +368,6 @@ describe("appReducer - Expanded Coverage", () => {
 			expect(result.currentOffset).toBe(50);
 			expect(result.selectedRowIndex).toBeNull();
 			expect(result.expandedRow).toBeNull();
-			expect(result.tableCache["public|users"]).toEqual({
 				columns: [],
 				rows: [],
 				hasMore: false,
@@ -433,7 +423,6 @@ describe("appReducer - Expanded Coverage", () => {
 				type: ActionType.SetTableCache,
 				cache,
 			});
-			expect(result.tableCache).toEqual(cache);
 			expect(result.refreshingTableKey).toBeNull();
 		});
 
@@ -441,7 +430,6 @@ describe("appReducer - Expanded Coverage", () => {
 			const cacheKey = "public|users";
 			const state = {
 				...initialAppState,
-				tableCache: {
 					[cacheKey]: {
 						columns: [{ name: "id", dataType: "integer", nullable: false }],
 						rows: [{ id: 1 }],
@@ -461,7 +449,6 @@ describe("appReducer - Expanded Coverage", () => {
 				key: cacheKey,
 			});
 
-			expect(result.tableCache[cacheKey]).toBeUndefined();
 			expect(result.columns).toEqual([]);
 			expect(result.dataRows).toEqual([]);
 			expect(result.hasMoreRows).toBe(false);
@@ -840,7 +827,6 @@ describe("appReducer - Expanded Coverage", () => {
 			expect(state.selectedTable).toEqual(tables[0]);
 			expect(state.columns).toEqual(columns);
 			expect(state.dataRows).toEqual(rows);
-			expect(state.tableCache["public|users"]).toEqual({
 				columns,
 				rows,
 				hasMore: false,

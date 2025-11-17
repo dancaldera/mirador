@@ -12,10 +12,8 @@ vi.mock("../../src/utils/persistence.js", () => ({
 		skipped: 0,
 	})),
 	loadQueryHistory: vi.fn(async () => []),
-	loadTableCache: vi.fn(async () => ({})),
 	saveConnections: vi.fn(async () => {}),
 	saveQueryHistory: vi.fn(async () => {}),
-	saveTableCache: vi.fn(async () => {}),
 }));
 
 import { beforeEach, describe, expect, it } from "bun:test";
@@ -23,8 +21,6 @@ import { ConnectionError } from "../../src/database/errors.js";
 import * as effects from "../../src/state/effects.js";
 
 const {
-	clearConnectionCache,
-	clearTableCacheEntry,
 	connectToDatabase,
 	fetchColumns,
 	fetchTableData,
@@ -67,17 +63,11 @@ const loadConnectionsMock = persistence.loadConnections as Mock<
 const loadQueryHistoryMock = persistence.loadQueryHistory as Mock<
 	typeof persistence.loadQueryHistory
 >;
-const loadTableCacheMock = persistence.loadTableCache as Mock<
-	typeof persistence.loadTableCache
->;
 const saveConnectionsMock = persistence.saveConnections as Mock<
 	typeof persistence.saveConnections
 >;
 const saveQueryHistoryMock = persistence.saveQueryHistory as Mock<
 	typeof persistence.saveQueryHistory
->;
-const saveTableCacheMock = persistence.saveTableCache as Mock<
-	typeof persistence.saveTableCache
 >;
 
 type Dispatch = (action: any) => void;

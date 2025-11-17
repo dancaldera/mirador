@@ -1,4 +1,3 @@
-import { performance } from "node:perf_hooks";
 import { nanoid } from "nanoid";
 import { createDatabaseConnection } from "../database/connection.js";
 import { ConnectionError, DatabaseError } from "../database/errors.js";
@@ -28,11 +27,6 @@ import {
 	validateConnectionNameComplete,
 } from "../utils/id-generator.js";
 
-// Simple function to create a cache key for a table
-const tableCacheKey = (table: TableInfo | null): string | null => {
-	if (!table) return null;
-	return table.schema ? `${table.schema}.${table.name}` : table.name;
-};
 
 import {
 	loadConnections,
@@ -292,11 +286,7 @@ export async function fetchColumns(
 	dbConfig: DatabaseConfig,
 	table: TableInfo,
 ): Promise<void> {
-	if (!shouldProceedWithRefresh(dispatch, state, table)) {
-		return;
-	}
 	dispatch({ type: ActionType.StartLoading });
-	dispatch({ type: ActionType.SetRefreshingTable, key: null });
 
 	let connection: DatabaseConnection | null = null;
 
@@ -326,7 +316,6 @@ export async function fetchColumns(
 			}
 		}
 		dispatch({ type: ActionType.StopLoading });
-		trackRefreshTimestamp(dispatch, table);
 	}
 }
 
@@ -345,11 +334,7 @@ export async function fetchTableData(
 	table: TableInfo,
 	options: FetchTableDataOptions = {},
 ): Promise<void> {
-	if (!shouldProceedWithRefresh(dispatch, state, table)) {
-		return;
-	}
 	dispatch({ type: ActionType.StartLoading });
-	dispatch({ type: ActionType.SetRefreshingTable, key: null });
 
 	let connection: DatabaseConnection | null = null;
 
@@ -389,7 +374,6 @@ export async function fetchTableData(
 			}
 		}
 		dispatch({ type: ActionType.StopLoading });
-		trackRefreshTimestamp(dispatch, table);
 	}
 }
 
@@ -615,43 +599,6 @@ export async function searchTableRows(
 	}
 }
 
-export async function clearTableCacheEntry(
-	dispatch: AppDispatch,
-	state: AppState,
-	dbConfig: DatabaseConfig,
-	table: TableInfo,
-): Promise<void> {
-	const cacheKey = tableCacheKey(table);
-
-	dispatch({ type: ActionType.SetRefreshingTable, key: cacheKey });
-
-	const resetState: AppState = {
-		...state,
-		columns: [],
-		dataRows: [],
-		hasMoreRows: false,
-		currentOffset: 0,
-	};
-
-	await fetchColumns(dispatch, resetState, dbConfig, table);
-	await fetchTableData(dispatch, resetState, dbConfig, table, {
-		offset: 0,
-		limit: DEFAULT_PAGE_SIZE,
-	});
-	enqueueNotification(dispatch, "Table cache cleared and refreshed.", "info");
-}
-
-export async function clearConnectionCache(
-	dispatch: AppDispatch,
-	state: AppState,
-): Promise<void> {
-	dispatch({ type: ActionType.SetRefreshingTable, key: null });
-	enqueueNotification(
-		dispatch,
-		"Cache cleared for current connection.",
-		"info",
-	);
-}
 
 export async function removeSavedConnection(
 	dispatch: AppDispatch,
@@ -808,36 +755,6 @@ export async function updateSavedConnection(
 	}
 }
 
-const REFRESH_THROTTLE_MS = 1500;
-
-function shouldProceedWithRefresh(
-	dispatch: AppDispatch,
-	state: AppState,
-	table: TableInfo,
-): boolean {
-	const key = tableCacheKey(table);
-	if (!key) return true;
-	const last = state.refreshTimestamps[key] ?? 0;
-	const canProceed = Date.now() - last >= REFRESH_THROTTLE_MS;
-	if (!canProceed) {
-		enqueueNotification(
-			dispatch,
-			"Please wait before refreshing this table again.",
-			"warning",
-		);
-	}
-	return canProceed;
-}
-
-function trackRefreshTimestamp(dispatch: AppDispatch, table: TableInfo): void {
-	const key = tableCacheKey(table);
-	if (!key) return;
-	dispatch({
-		type: ActionType.SetRefreshTimestamp,
-		key,
-		timestamp: Date.now(),
-	});
-}
 
 function enqueueNotification(
 	dispatch: AppDispatch,
