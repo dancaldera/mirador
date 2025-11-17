@@ -15,14 +15,23 @@ export class PostgresConnection implements DatabaseConnection {
 
 	constructor(private readonly config: DatabaseConfig) {
 		// Parse SSL mode from connection string
-		let sslConfig = { rejectUnauthorized: false }; // Default for AWS RDS
+		let sslConfig: boolean | { rejectUnauthorized: boolean } = {
+			rejectUnauthorized: false,
+		}; // Default for AWS RDS
 
 		try {
 			const url = new URL(config.connectionString);
 			const sslMode = url.searchParams.get("sslmode");
+			const isLocalhost =
+				url.hostname === "localhost" ||
+				url.hostname === "127.0.0.1" ||
+				url.hostname === "::1";
 
-			if (sslMode === "disable" || sslMode === "0") {
-				sslConfig = { rejectUnauthorized: false };
+			// Disable SSL for localhost connections
+			if (isLocalhost) {
+				sslConfig = false;
+			} else if (sslMode === "disable" || sslMode === "0") {
+				sslConfig = false;
 			} else if (sslMode === "require" || sslMode === "prefer") {
 				sslConfig = { rejectUnauthorized: false };
 			} else if (sslMode === "verify-ca" || sslMode === "verify-full") {

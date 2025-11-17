@@ -77,7 +77,10 @@ export const parseCliArgs = (): CliArgs => {
 			port: values.port ? parseInt(values.port as string, 10) : undefined,
 			database: values.database as string,
 			user: values.user as string,
-			password: values.password as string,
+			password:
+				(values.password as string) && (values.password as string).trim() !== ""
+					? (values.password as string)
+					: undefined,
 			connectionName: values["connection-name"] as string,
 			connectionId: values["connection-id"] as string,
 		};

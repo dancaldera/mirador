@@ -57,10 +57,16 @@ export class SeerDBAgent {
 			if (!connectionString) {
 				switch (config.type) {
 					case "postgresql":
-						connectionString = `postgresql://${config.user}:${config.password}@${config.host}:${config.port || 5432}/${config.database}`;
+						connectionString =
+							config.password && config.password.trim() !== ""
+								? `postgresql://${config.user}:${config.password}@${config.host}:${config.port || 5432}/${config.database}`
+								: `postgresql://${config.user}@${config.host}:${config.port || 5432}/${config.database}`;
 						break;
 					case "mysql":
-						connectionString = `mysql://${config.user}:${config.password}@${config.host}:${config.port || 3306}/${config.database}`;
+						connectionString =
+							config.password && config.password !== ""
+								? `mysql://${config.user}:${config.password}@${config.host}:${config.port || 3306}/${config.database}`
+								: `mysql://${config.user}@${config.host}:${config.port || 3306}/${config.database}`;
 						break;
 					case "sqlite":
 						connectionString = config.host || config.database || "";

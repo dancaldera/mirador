@@ -110,6 +110,50 @@ const HeadlessApp: React.FC<{ args: CliArgs }> = ({ args }) => {
 						updatedAt: new Date().toISOString(),
 					};
 				}
+				// Handle connection from individual parameters
+				else if (args.dbType && args.host && args.database && args.user) {
+					// Build connection string from individual parameters
+					let connectionString: string;
+					switch (args.dbType) {
+						case "postgresql":
+							connectionString =
+								args.password && args.password.trim() !== ""
+									? `postgresql://${args.user}:${args.password}@${args.host}:${args.port || 5432}/${args.database}`
+									: `postgresql://${args.user}@${args.host}:${args.port || 5432}/${args.database}`;
+							break;
+						case "mysql":
+							connectionString =
+								args.password && args.password.trim() !== ""
+									? `mysql://${args.user}:${args.password}@${args.host}:${args.port || 3306}/${args.database}`
+									: `mysql://${args.user}@${args.host}:${args.port || 3306}/${args.database}`;
+							break;
+						case "sqlite":
+							connectionString = args.host || args.database || "";
+							break;
+						default:
+							throw new Error(`Unsupported database type: ${args.dbType}`);
+					}
+
+					const connection = createDatabaseConnection({
+						type: args.dbType as DBType,
+						connectionString: connectionString,
+					});
+					await connection.connect();
+					activeConnection = connection;
+					const connectionId = await generateUniqueConnectionId();
+					const connectionName = await generateUniqueConnectionName(
+						"Headless Connection",
+						args.dbType as DBType,
+					);
+					connectionInfo = {
+						id: connectionId,
+						name: connectionName,
+						type: args.dbType as DBType,
+						connectionString: connectionString,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					};
+				}
 
 				// Update state if we have a connection
 				if (activeConnection && connectionInfo) {
