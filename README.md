@@ -172,6 +172,15 @@ console.log(`Found ${result.rowCount} users`);
 await agent.disconnect();
 ```
 
+#### Copy Agent Documentation
+
+```bash
+# Copy agent documentation to clipboard for AI agent conversations
+seerdb --copy
+```
+
+This command copies the complete agent documentation (AGENTS.md) to your clipboard, allowing you to easily paste it into AI agent conversations for proper usage guidance.
+
 #### 🔒 Security for AI Agents
 
 **Important**: Never share database passwords in conversations with AI agents.
