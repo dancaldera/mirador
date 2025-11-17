@@ -18,6 +18,8 @@ export interface CliArgs {
 	headless?: boolean;
 	/** List saved connections */
 	listConnections?: boolean;
+	/** Copy agent documentation to clipboard */
+	copy?: boolean;
 	/** Show help */
 	help?: boolean;
 	/** Show AI agent instructions */
@@ -52,6 +54,7 @@ export const parseCliArgs = (): CliArgs => {
 				"list-connections": { type: "boolean" },
 				help: { type: "boolean", short: "h" },
 				"agent-help": { type: "boolean" },
+				copy: { type: "boolean" },
 				host: { type: "string" },
 				port: { type: "string" },
 				database: { type: "string", short: "d" },
@@ -71,6 +74,7 @@ export const parseCliArgs = (): CliArgs => {
 			output: (values.output as "json" | "table" | "toon") || "table",
 			headless: values.headless as boolean,
 			listConnections: values["list-connections"] as boolean,
+			copy: values.copy as boolean,
 			help: values.help as boolean,
 			agentHelp: values["agent-help"] as boolean,
 			host: values.host as string,
@@ -103,6 +107,7 @@ USAGE:
    --api, -a                    Run in API mode for programmatic control
    --headless                   Run in headless mode (no TUI)
    --list-connections           List all saved connections
+   --copy                       Copy agent documentation to clipboard
 
  CONNECTION OPTIONS:
   --db-type <type>             Database type: postgresql, mysql, sqlite
