@@ -105,7 +105,10 @@ Send JSON commands via stdin:
 ### Headless Mode (One-off Operations)
 
 ```bash
-# Query with automatic limits
+# Query with automatic limits (TOON format - default for AI agents)
+seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output toon
+
+# Query with JSON output
 seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output json
 
 # List saved connections

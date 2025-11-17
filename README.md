@@ -94,7 +94,11 @@ await agent.disconnect();
 
 **3. Or use headless mode:**
 ```bash
-seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT COUNT(*) FROM users"
+# TOON format (optimized for AI agents - 30-60% fewer tokens)
+seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output toon
+
+# JSON format
+seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT COUNT(*) FROM users" --output json
 ```
 
 **4. Or API mode for interactive control:**
@@ -154,7 +158,7 @@ CONNECTION OPTIONS:
 
 QUERY OPTIONS:
   --query, -q <sql>            SQL query to execute
-  --output <format>            Output format: json, table (default: table)
+   --output <format>            Output format: json, table, toon (default: table)
 
 OTHER:
   --help, -h                   Show help message
@@ -166,7 +170,10 @@ OTHER:
 # List all saved connections (works with any database engine)
 seerdb --headless --list-connections --output json
 
-# Query a specific database
+# Query a specific database with TOON format (optimized for AI agents)
+seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 5" --output toon
+
+# Query with JSON output
 seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 5" --output json
 ```
 
