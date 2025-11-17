@@ -9,7 +9,6 @@ import type {
 	Notification,
 	QueryHistoryItem,
 	SortConfig,
-	TableCacheEntry,
 	TableInfo,
 	ViewHistoryEntry,
 	ViewState,
@@ -42,8 +41,6 @@ export enum ActionType {
 	SetSelectedRowIndex = "SET_SELECTED_ROW_INDEX",
 	SetExpandedRow = "SET_EXPANDED_ROW",
 	SetColumnVisibilityMode = "SET_COLUMN_VISIBILITY_MODE",
-	SetTableCache = "SET_TABLE_CACHE",
-	RemoveTableCacheEntry = "REMOVE_TABLE_CACHE_ENTRY",
 	SetRefreshingTable = "SET_REFRESHING_TABLE",
 	SetRefreshTimestamp = "SET_REFRESH_TIMESTAMP",
 	AddNotification = "ADD_NOTIFICATION",
@@ -100,8 +97,6 @@ export type AppAction =
 	| { type: ActionType.SetSelectedRowIndex; index: number | null }
 	| { type: ActionType.SetExpandedRow; row: DataRow | null }
 	| { type: ActionType.SetColumnVisibilityMode; mode: ColumnVisibilityMode }
-	| { type: ActionType.SetTableCache; cache: Record<string, TableCacheEntry> }
-	| { type: ActionType.RemoveTableCacheEntry; key: string }
 	| { type: ActionType.SetRefreshingTable; key: string | null }
 	| { type: ActionType.SetRefreshTimestamp; key: string; timestamp: number }
 	| { type: ActionType.AddNotification; notification: Notification }

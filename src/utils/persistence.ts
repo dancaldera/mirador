@@ -1,4 +1,10 @@
-import { createHash } from "node:crypto";
+import {
+	createCipheriv,
+	createDecipheriv,
+	createHash,
+	randomBytes,
+	scrypt,
+} from "node:crypto";
 import { constants } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -8,7 +14,6 @@ import type {
 	ColumnInfo,
 	ConnectionInfo,
 	QueryHistoryItem,
-	TableCacheEntry,
 } from "../types/state.js";
 import { DBType } from "../types/state.js";
 import { DebouncedWriter } from "./debounced-writer.js";
@@ -23,16 +28,89 @@ export function setPersistenceDataDirectory(dir: string): void {
 	dataDir = dir;
 }
 
-// Debounced writers for cache operations (500ms delay, batched writes)
-const tableCacheWriter = new DebouncedWriter<
-	Record<string, Record<string, TableCacheEntry>>
->(async (data) => {
-	await writeFile(
-		resolveDataPath("table-cache.json"),
-		JSON.stringify(data, null, 2),
-		"utf-8",
-	);
-}, 500);
+// Encryption key derivation - uses machine-specific salt
+const ENCRYPTION_KEY_FILE = "encryption.key";
+const ALGORITHM = "aes-256-gcm";
+
+async function getEncryptionKey(): Promise<Buffer> {
+	const keyPath = resolveDataPath(ENCRYPTION_KEY_FILE);
+
+	// Try to load existing key
+	try {
+		if (await fileExists(keyPath)) {
+			const keyData = await readFile(keyPath);
+			if (keyData.length === 32) {
+				return keyData;
+			}
+		}
+	} catch {
+		// Key file doesn't exist or is invalid
+	}
+
+	// Generate new key
+	const newKey = randomBytes(32);
+	await ensureDataDirectory();
+	await writeFile(keyPath, newKey);
+
+	return newKey;
+}
+
+async function encryptPassword(
+	password: string,
+): Promise<{ encrypted: string; iv: string; tag: string }> {
+	const key = await getEncryptionKey();
+	const iv = randomBytes(16);
+	const cipher = createCipheriv(ALGORITHM, key, iv);
+
+	let encrypted = cipher.update(password, "utf8", "hex");
+	encrypted += cipher.final("hex");
+
+	const tag = cipher.getAuthTag();
+
+	return {
+		encrypted,
+		iv: iv.toString("hex"),
+		tag: tag.toString("hex"),
+	};
+}
+
+async function decryptPassword(encryptedData: {
+	encrypted: string;
+	iv: string;
+	tag: string;
+}): Promise<string> {
+	const key = await getEncryptionKey();
+	const iv = Buffer.from(encryptedData.iv, "hex");
+	const tag = Buffer.from(encryptedData.tag, "hex");
+
+	const decipher = createDecipheriv(ALGORITHM, key, iv);
+	decipher.setAuthTag(tag);
+
+	let decrypted = decipher.update(encryptedData.encrypted, "hex", "utf8");
+	decrypted += decipher.final("utf8");
+
+	return decrypted;
+}
+
+function maskPassword(connectionString: string): string {
+	// Common connection string patterns
+	const patterns = [
+		/postgresql:\/\/([^:]+):([^@]+)@/, // postgresql://user:pass@host
+		/mysql:\/\/([^:]+):([^@]+)@/, // mysql://user:pass@host
+		/password=([^&;]+)/, // password=pass
+		/\/\/([^:]+):([^@]+)@/, // //user:pass@host
+	];
+
+	let masked = connectionString;
+	patterns.forEach((pattern) => {
+		masked = masked.replace(pattern, (_, user, pass) => {
+			const maskedPass = "*".repeat(Math.min(pass.length, 8));
+			return `${user}:${maskedPass}@`;
+		});
+	});
+
+	return masked;
+}
 
 const connectionsWriter = new DebouncedWriter<ConnectionInfo[]>(
 	async (data) => {
@@ -58,11 +136,24 @@ const queryHistoryWriter = new DebouncedWriter<QueryHistoryItem[]>(
 
 // Flush all pending writes on process exit
 process.on("beforeExit", () => {
-	void Promise.all([
-		tableCacheWriter.flush(),
-		connectionsWriter.flush(),
-		queryHistoryWriter.flush(),
-	]);
+	void Promise.all([connectionsWriter.flush(), queryHistoryWriter.flush()]);
+});
+
+// Connection with encrypted password
+const encryptedConnectionSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	type: z.nativeEnum(DBType),
+	connectionString: z.string(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+	encryptedPassword: z
+		.object({
+			encrypted: z.string(),
+			iv: z.string(),
+			tag: z.string(),
+		})
+		.optional(),
 });
 
 const connectionSchema: z.ZodType<ConnectionInfo> = z.object({
@@ -93,13 +184,6 @@ const columnSchema: z.ZodType<ColumnInfo> = z.object({
 	isForeignKey: z.boolean().optional(),
 	foreignTable: z.string().optional(),
 	foreignColumn: z.string().optional(),
-});
-
-const tableCacheEntrySchema: z.ZodType<TableCacheEntry> = z.object({
-	columns: z.array(columnSchema),
-	rows: z.array(z.record(z.string(), z.unknown())),
-	hasMore: z.boolean(),
-	offset: z.number(),
 });
 
 async function ensureDataDirectory(): Promise<void> {
@@ -152,24 +236,72 @@ export async function loadConnections(): Promise<ConnectionsLoadResult> {
 	const connections: ConnectionInfo[] = [];
 	let normalizedCount = 0;
 	let skippedCount = 0;
-	data.forEach((entry, index) => {
-		const normalized = normalizeConnectionEntry(entry);
-		if (normalized) {
-			if (normalized._normalized) {
-				normalizedCount += 1;
-				delete normalized._normalized;
+
+	for (const [index, entry] of data.entries()) {
+		try {
+			// First try to parse as encrypted connection
+			const encryptedParsed = encryptedConnectionSchema.safeParse(entry);
+			if (encryptedParsed.success) {
+				let connectionString = encryptedParsed.data.connectionString;
+
+				// If there's encrypted password, decrypt it and restore to connection string
+				if (encryptedParsed.data.encryptedPassword) {
+					try {
+						const decryptedPassword = await decryptPassword(
+							encryptedParsed.data.encryptedPassword,
+						);
+						connectionString = restorePasswordToConnectionString(
+							connectionString,
+							decryptedPassword,
+						);
+					} catch (error) {
+						console.warn(
+							`Failed to decrypt password for connection ${encryptedParsed.data.name}:`,
+							error,
+						);
+						skippedCount += 1;
+						continue;
+					}
+				}
+
+				const connection: ConnectionInfo = {
+					id: encryptedParsed.data.id,
+					name: encryptedParsed.data.name,
+					type: encryptedParsed.data.type,
+					connectionString,
+					createdAt: encryptedParsed.data.createdAt,
+					updatedAt: encryptedParsed.data.updatedAt,
+				};
+
+				connections.push(connection);
+			} else {
+				// Fallback to legacy connection parsing
+				const normalized = normalizeConnectionEntry(entry);
+				if (normalized) {
+					if (normalized._normalized) {
+						normalizedCount += 1;
+						delete normalized._normalized;
+					}
+					connections.push(normalized);
+				} else {
+					console.warn(`Skipping invalid connection entry at index ${index}.`);
+					skippedCount += 1;
+				}
 			}
-			connections.push(normalized);
-		} else {
-			console.warn(`Skipping invalid connection entry at index ${index}.`);
+		} catch (error) {
+			console.warn(
+				`Error processing connection entry at index ${index}:`,
+				error,
+			);
 			skippedCount += 1;
 		}
-	});
+	}
 
+	// Deduplicate connections
 	const deduped: ConnectionInfo[] = [];
 	const byKey = new Map<string, ConnectionInfo>();
 	connections.forEach((connection) => {
-		const key = `${connection.type}|${connection.connectionString}`;
+		const key = `${connection.type}|${maskPassword(connection.connectionString)}`;
 		const existing = byKey.get(key);
 		if (!existing) {
 			byKey.set(key, connection);
@@ -203,16 +335,45 @@ export async function saveConnections(
 	flush = false,
 ): Promise<void> {
 	await ensureDataDirectory();
+
+	// Encrypt passwords in connection strings before saving
+	const encryptedConnections = await Promise.all(
+		connections.map(async (connection) => {
+			const password = extractPasswordFromConnectionString(
+				connection.connectionString,
+			);
+
+			if (password) {
+				// Encrypt the password
+				const encryptedPassword = await encryptPassword(password);
+
+				// Create masked connection string for storage
+				const maskedConnectionString = maskPassword(
+					connection.connectionString,
+				);
+
+				return {
+					...connection,
+					connectionString: maskedConnectionString,
+					encryptedPassword,
+				};
+			}
+
+			// No password found, store as-is
+			return connection;
+		}),
+	);
+
 	if (flush) {
 		// For testing: write immediately to catch errors
 		await writeFile(
 			resolveDataPath("connections.json"),
-			JSON.stringify(connections, null, 2),
+			JSON.stringify(encryptedConnections, null, 2),
 			"utf-8",
 		);
 	} else {
 		// Use debounced writer to batch connection saves
-		connectionsWriter.write(connections);
+		connectionsWriter.write(encryptedConnections);
 	}
 }
 
@@ -246,89 +407,6 @@ export async function saveQueryHistory(
 	} else {
 		// Use debounced writer to batch query history saves
 		queryHistoryWriter.write(history);
-	}
-}
-
-async function readTableCacheFile(): Promise<
-	Record<string, Record<string, TableCacheEntry>>
-> {
-	await ensureDataDirectory();
-
-	const targetPath = resolveDataPath("table-cache.json");
-
-	if (!(await fileExists(targetPath))) {
-		return {};
-	}
-
-	const content = await readFile(targetPath, "utf-8");
-	if (!content.trim()) {
-		return {};
-	}
-
-	let data: unknown;
-	try {
-		data = JSON.parse(content);
-	} catch (error) {
-		console.warn("Invalid table cache file, resetting.", error);
-		return {};
-	}
-	if (typeof data !== "object" || data === null) {
-		console.warn("Invalid table cache file, resetting.");
-		return {};
-	}
-
-	const result: Record<string, Record<string, TableCacheEntry>> = {};
-
-	for (const [connectionId, caches] of Object.entries(
-		data as Record<string, unknown>,
-	)) {
-		if (typeof caches !== "object" || caches === null) {
-			console.warn(
-				`Skipping table cache for connection ${connectionId}: expected object.`,
-			);
-			continue;
-		}
-
-		const connectionCache: Record<string, TableCacheEntry> = {};
-		for (const [tableKey, entry] of Object.entries(
-			caches as Record<string, unknown>,
-		)) {
-			const parsed = safeParse(tableCacheEntrySchema, entry);
-			if (parsed) {
-				connectionCache[tableKey] = parsed;
-			}
-		}
-
-		result[connectionId] = connectionCache;
-	}
-
-	return result;
-}
-
-export async function loadTableCache(
-	connectionId: string,
-): Promise<Record<string, TableCacheEntry>> {
-	const file = await readTableCacheFile();
-	return file[connectionId] ?? {};
-}
-
-export async function saveTableCache(
-	connectionId: string,
-	cache: Record<string, TableCacheEntry>,
-	flush = false,
-): Promise<void> {
-	const file = await readTableCacheFile();
-	file[connectionId] = cache;
-	if (flush) {
-		// For testing: write immediately to catch errors
-		await writeFile(
-			resolveDataPath("table-cache.json"),
-			JSON.stringify(file, null, 2),
-			"utf-8",
-		);
-	} else {
-		// Use debounced writer to batch multiple cache updates
-		tableCacheWriter.write(file);
 	}
 }
 
@@ -451,7 +529,79 @@ function createDeterministicId(value: string): string {
 	return createHash("sha1").update(value).digest("hex").slice(0, 12);
 }
 
+function extractPasswordFromConnectionString(
+	connectionString: string,
+): string | null {
+	// Extract password from various connection string formats
+	const patterns = [
+		/postgresql:\/\/[^:]+:([^@]+)@/, // postgresql://user:pass@host
+		/mysql:\/\/[^:]+:([^@]+)@/, // mysql://user:pass@host
+		/password=([^&;]+)/, // password=pass
+		/\/\/[^:]+:([^@]+)@/, // //user:pass@host
+	];
+
+	for (const pattern of patterns) {
+		const match = connectionString.match(pattern);
+		if (match && match[1]) {
+			return match[1];
+		}
+	}
+
+	return null;
+}
+
+function restorePasswordToConnectionString(
+	maskedConnectionString: string,
+	password: string,
+): string {
+	// Replace masked password with actual password
+	const patterns = [
+		{
+			masked: /postgresql:\/\/([^:]+):\*+@/,
+			restore: (_: string, user: string) => `postgresql://${user}:${password}@`,
+		},
+		{
+			masked: /postgres:\/\/([^:]+):\*+@/,
+			restore: (_: string, user: string) => `postgres://${user}:${password}@`,
+		},
+		{
+			masked: /postgres:([^:]+):\*+@([^/]+)/,
+			restore: (_: string, user: string, host: string) =>
+				`postgres:${user}:${password}@${host}`,
+		},
+		{
+			masked: /postgres:\*+@([^/]+)/,
+			restore: (_: string, host: string) =>
+				`postgresql://postgres:${password}@${host}`,
+		},
+		{
+			masked: /mysql:\/\/([^:]+):\*+@/,
+			restore: (_: string, user: string) => `mysql://${user}:${password}@`,
+		},
+		{
+			masked: /password=\*+/,
+			restore: () => `password=${password}`,
+		},
+		{
+			masked: /\/\/([^:]+):\*+@/,
+			restore: (_: string, user: string) => `//${user}:${password}@`,
+		},
+	];
+
+	for (const { masked, restore } of patterns) {
+		if (masked.test(maskedConnectionString)) {
+			return maskedConnectionString.replace(masked, restore);
+		}
+	}
+
+	return maskedConnectionString;
+}
+
+// Export utility functions for credential sanitization
+export { maskPassword };
+
 export const __persistenceInternals = {
 	normalizeConnectionEntry,
 	connectionSchema,
+	maskPassword,
 } as const;

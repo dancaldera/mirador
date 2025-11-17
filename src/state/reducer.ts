@@ -1,7 +1,6 @@
 import { produce } from "immer";
 import { type AppState, initialAppState, ViewState } from "../types/state.js";
 import { ActionType, type AppAction } from "./actions.js";
-import { tableCacheKey } from "./cache.js";
 
 function resetSearchState(draft: AppState): void {
 	draft.searchTerm = "";
@@ -77,7 +76,6 @@ export function appReducer(
 				draft.dataRows = [];
 				draft.hasMoreRows = false;
 				draft.currentOffset = 0;
-				draft.tableCache = {};
 				draft.refreshingTableKey = null;
 				draft.refreshTimestamps = {};
 				draft.notifications = [];
@@ -126,24 +124,6 @@ export function appReducer(
 						cache.columns = action.columns;
 						draft.tableCache[key] = cache;
 					}
-				}
-				break;
-
-			case ActionType.SetTableCache:
-				draft.tableCache = action.cache;
-				draft.refreshingTableKey = null;
-				break;
-
-			case ActionType.RemoveTableCacheEntry:
-				if (action.key in draft.tableCache) {
-					delete draft.tableCache[action.key];
-				}
-				if (tableCacheKey(draft.selectedTable) === action.key) {
-					draft.columns = [];
-					draft.dataRows = [];
-					draft.hasMoreRows = false;
-					draft.currentOffset = 0;
-					draft.refreshingTableKey = action.key;
 				}
 				break;
 

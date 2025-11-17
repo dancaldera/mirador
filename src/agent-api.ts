@@ -41,7 +41,7 @@ export interface SchemaInfo {
  * Programmatic interface for database operations
  * Designed for AI agents and automation scripts
  */
-export class MiradorAgent {
+export class SeerDBAgent {
 	private connection: any = null;
 	private config: DatabaseConfig | null = null;
 
@@ -339,10 +339,10 @@ export class MiradorAgent {
 }
 
 /**
- * Factory function to create a MiradorAgent instance
+ * Factory function to create a SeerDBAgent instance
  */
-export const createAgent = (): MiradorAgent => {
-	return new MiradorAgent();
+export const createAgent = (): SeerDBAgent => {
+	return new SeerDBAgent();
 };
 
 /**

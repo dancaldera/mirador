@@ -1,11 +1,9 @@
 import { Box, Text, useInput, useStdout } from "ink";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActionType } from "../state/actions.js";
-import { tableCacheKey } from "../state/cache.js";
 import { useAppDispatch, useAppState } from "../state/context.js";
 import {
 	clearConnectionCache,
-	clearTableCacheEntry,
 	exportTableData,
 	fetchColumns,
 	fetchTableData,
@@ -83,7 +81,6 @@ const DataPreviewViewComponent: React.FC = () => {
 	}, [state.dataRows, state.filterValue, state.columns]);
 
 	const rowsToDisplay = processedRows;
-	const cacheKey = tableCacheKey(table);
 
 	// Column processing hooks
 	const fixedPKColumns = useMemo(
@@ -436,15 +433,7 @@ const DataPreviewViewComponent: React.FC = () => {
 		}
 
 		if ((input === "c" || input === "C") && !state.loading) {
-			void clearTableCacheEntry(
-				dispatch,
-				state,
-				{
-					type: state.dbType,
-					connectionString: state.activeConnection.connectionString,
-				},
-				table,
-			);
+			// Cache clearing functionality removed - all queries now fetch fresh data
 			return;
 		}
 

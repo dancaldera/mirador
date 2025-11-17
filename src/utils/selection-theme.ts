@@ -1,7 +1,7 @@
 /**
  * Selection Theme Constants
  *
- * Defines the consistent visual style for selected items across all views in Mirador.
+ * Defines the consistent visual style for selected items across all views in SeerDB.
  * This ensures a cohesive user experience throughout the application.
  */
 

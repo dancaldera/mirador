@@ -1,13 +1,17 @@
 import { render } from "ink";
 import React from "react";
 import { createDatabaseConnection } from "./database/connection.js";
+import type { DatabaseConnection } from "./database/types.js";
 import { ActionType } from "./state/actions.js";
 import { AppProvider, useAppDispatch, useAppState } from "./state/context.js";
 import { initializeApp } from "./state/effects.js";
-import { DBType, type ViewState } from "./types/state.js";
+import type { DBType, ViewState } from "./types/state.js";
 import type { CliArgs } from "./utils/cli-args.js";
-import type { DatabaseConnection } from "./database/types.js";
-import { loadConnections } from "./utils/persistence.js";
+import {
+	generateUniqueConnectionId,
+	generateUniqueConnectionName,
+} from "./utils/id-generator.js";
+import { loadConnections, maskPassword } from "./utils/persistence.js";
 
 const HeadlessApp: React.FC<{ args: CliArgs }> = ({ args }) => {
 	const dispatch = useAppDispatch();
@@ -24,42 +28,97 @@ const HeadlessApp: React.FC<{ args: CliArgs }> = ({ args }) => {
 
 				// Handle list connections
 				if (args.listConnections) {
-					const sqliteConnection = createDatabaseConnection({
-						type: DBType.SQLite,
-						connectionString: "dist/demo.db",
-					});
-					await sqliteConnection.connect();
-					const queryResult = await sqliteConnection.query(
-						"SELECT id, name, type, connection_string as connectionString, created_at as createdAt, updated_at as updatedAt FROM connections ORDER BY name",
+					const connectionsResult = await loadConnections();
+					// Mask connection strings in output
+					const maskedConnections = connectionsResult.connections.map(
+						(conn) => ({
+							...conn,
+							connectionString: maskPassword(conn.connectionString),
+						}),
 					);
-					setResult(queryResult.rows);
+					setResult(maskedConnections);
 					return;
 				}
 
 				let activeConnection = null;
+				let connectionInfo = null;
 
-				// Handle connection
-				if (args.connect && args.dbType) {
+				// Handle connection by ID first
+				if (args.connectionId) {
+					const connectionsResult = await loadConnections();
+					const savedConnection = connectionsResult.connections.find(
+						(conn) => conn.id === args.connectionId,
+					);
+
+					if (!savedConnection) {
+						setError(
+							`Saved connection with ID '${args.connectionId}' not found`,
+						);
+						return;
+					}
+
+					// Use the connection string from saved connection (password already decrypted by loadConnections)
+					const connection = createDatabaseConnection({
+						type: savedConnection.type as DBType,
+						connectionString: savedConnection.connectionString,
+					});
+					await connection.connect();
+					activeConnection = connection;
+					connectionInfo = savedConnection;
+				}
+				// Handle connection by name
+				else if (args.connectionName) {
+					const connectionsResult = await loadConnections();
+					const savedConnection = connectionsResult.connections.find(
+						(conn) => conn.name === args.connectionName,
+					);
+
+					if (!savedConnection) {
+						setError(`Saved connection '${args.connectionName}' not found`);
+						return;
+					}
+
+					// Use the connection string from saved connection (password already decrypted by loadConnections)
+					const connection = createDatabaseConnection({
+						type: savedConnection.type as DBType,
+						connectionString: savedConnection.connectionString,
+					});
+					await connection.connect();
+					activeConnection = connection;
+					connectionInfo = savedConnection;
+				}
+				// Handle direct connection
+				else if (args.connect && args.dbType) {
 					const connection = createDatabaseConnection({
 						type: args.dbType as DBType,
 						connectionString: args.connect,
 					});
 					await connection.connect();
 					activeConnection = connection;
+					const connectionId = await generateUniqueConnectionId();
+					const connectionName = await generateUniqueConnectionName(
+						"Headless Connection",
+						args.dbType as DBType,
+					);
+					connectionInfo = {
+						id: connectionId,
+						name: connectionName,
+						type: args.dbType as DBType,
+						connectionString: args.connect,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					};
+				}
+
+				// Update state if we have a connection
+				if (activeConnection && connectionInfo) {
 					dispatch({
 						type: ActionType.SetActiveConnection,
-						connection: {
-							id: "headless-connection",
-							name: "Headless Connection",
-							type: args.dbType as DBType,
-							connectionString: args.connect,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						},
+						connection: connectionInfo,
 					});
 					dispatch({
 						type: ActionType.SetDBType,
-						dbType: args.dbType as DBType,
+						dbType: connectionInfo.type as DBType,
 					});
 				}
 
@@ -90,8 +149,12 @@ const HeadlessApp: React.FC<{ args: CliArgs }> = ({ args }) => {
 				if (args.output === "json") {
 					console.log(JSON.stringify(result, null, 2));
 				} else {
-					// Simple table output
-					console.table(result);
+					// Simple table output for query results
+					if (result && result.rows) {
+						console.table(result.rows);
+					} else {
+						console.table(result);
+					}
 				}
 				process.exit(0);
 			}

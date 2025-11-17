@@ -1,6 +1,6 @@
-# Mirador Executable Distribution
+# SeerDB Executable Distribution
 
-This guide explains how to build and distribute the standalone Mirador executable.
+This guide explains how to build and distribute the standalone SeerDB executable.
 
 ## Building the Executable
 
@@ -10,9 +10,9 @@ bun run build:exe
 ```
 
 This will create:
-- `dist/mirador` - The compiled executable (59MB)
+- `dist/seerdb` - The compiled executable (59MB)
 - `dist/yoga.wasm` - Required WASM file for UI layout
-- `dist/mirador.sh` - Wrapper script for easy execution
+- `dist/seerdb.sh` - Wrapper script for easy execution
 
 ## Running the Executable
 
@@ -21,7 +21,7 @@ This will create:
 The wrapper script handles path resolution automatically:
 
 ```bash
-./dist/mirador.sh
+./dist/seerdb.sh
 ```
 
 You can run this from anywhere, and it will work correctly.
@@ -30,46 +30,46 @@ You can run this from anywhere, and it will work correctly.
 
 ```bash
 cd dist
-./mirador
+./seerdb
 ```
 
 **Note**: The executable must be run from the `dist` directory (or yoga.wasm must be in the same directory) because Ink's yoga-wasm-web dependency requires the WASM file to be present.
 
 ## Installing Globally
 
-To make Mirador available system-wide:
+To make SeerDB available system-wide:
 
 ```bash
 # Create a directory for the executable
-sudo mkdir -p /usr/local/lib/mirador
+sudo mkdir -p /usr/local/lib/seerdb
 
 # Copy the executable and required files
-sudo cp dist/mirador /usr/local/lib/mirador/
-sudo cp dist/yoga.wasm /usr/local/lib/mirador/
+sudo cp dist/seerdb /usr/local/lib/seerdb/
+sudo cp dist/yoga.wasm /usr/local/lib/seerdb/
 
 # Create a symlink in your PATH
-sudo ln -sf /usr/local/lib/mirador/mirador /usr/local/bin/mirador
+sudo ln -sf /usr/local/lib/seerdb/seerdb /usr/local/bin/seerdb
 
 # Or use the wrapper script approach
-sudo cp dist/mirador.sh /usr/local/bin/mirador
+sudo cp dist/seerdb.sh /usr/local/bin/seerdb
 ```
 
-Now you can run `mirador` from anywhere!
+Now you can run `seerdb` from anywhere!
 
 ## Distribution
 
 When distributing the executable, you **must** include both files:
-- `mirador` (or `mirador.exe` on Windows)
+- `seerdb` (or `seerdb.exe` on Windows)
 - `yoga.wasm`
 
 They must be in the same directory. The recommended approach is to:
 
 1. **Option A**: Distribute the wrapper script
-   - Include `mirador`, `yoga.wasm`, and `mirador.sh`
-   - Users run `./mirador.sh`
+   - Include `seerdb`, `yoga.wasm`, and `seerdb.sh`
+   - Users run `./seerdb.sh`
 
 2. **Option B**: Create a proper installer
-   - Install to `/usr/local/lib/mirador/` (or `C:\Program Files\Mirador\` on Windows)
+   - Install to `/usr/local/lib/seerdb/` (or `C:\Program Files\SeerDB\` on Windows)
    - Add symlink/shortcut to user's PATH
 
 ## Platform-Specific Builds
@@ -95,16 +95,16 @@ To build for different platforms, you'll need to:
 ### "Cannot find module './yoga.wasm'" error
 
 This means the executable can't find `yoga.wasm`. Solutions:
-1. Use the wrapper script: `./dist/mirador.sh`
-2. Run from the dist directory: `cd dist && ./mirador`
+1. Use the wrapper script: `./dist/seerdb.sh`
+2. Run from the dist directory: `cd dist && ./seerdb`
 3. Ensure `yoga.wasm` is in the same directory as the executable
 
 ### Permission denied
 
 Make the executable runnable:
 ```bash
-chmod +x dist/mirador
-chmod +x dist/mirador.sh
+chmod +x dist/seerdb
+chmod +x dist/seerdb.sh
 ```
 
 ## Development Notes

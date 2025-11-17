@@ -1,4 +1,4 @@
-// Example: Basic AI agent usage with Mirador
+// Example: Basic AI agent usage with SeerDB
 
 import { createAgent, type DatabaseConfig, type AgentQueryResult } from "./agent-api.js";
 

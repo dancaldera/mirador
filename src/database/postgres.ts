@@ -14,12 +14,30 @@ export class PostgresConnection implements DatabaseConnection {
 	private readonly closeTimeoutMillis: number;
 
 	constructor(private readonly config: DatabaseConfig) {
+		// Parse SSL mode from connection string
+		let sslConfig = { rejectUnauthorized: false }; // Default for AWS RDS
+
+		try {
+			const url = new URL(config.connectionString);
+			const sslMode = url.searchParams.get("sslmode");
+
+			if (sslMode === "disable" || sslMode === "0") {
+				sslConfig = false;
+			} else if (sslMode === "require" || sslMode === "prefer") {
+				sslConfig = { rejectUnauthorized: false };
+			} else if (sslMode === "verify-ca" || sslMode === "verify-full") {
+				sslConfig = { rejectUnauthorized: true };
+			}
+		} catch {
+			// If URL parsing fails, use default SSL config
+		}
+
 		this.pool = new Pool({
 			connectionString: config.connectionString,
 			max: config.pool?.max ?? 10,
 			idleTimeoutMillis: config.pool?.idleTimeoutMillis ?? 30_000,
 			connectionTimeoutMillis: config.pool?.connectionTimeoutMillis ?? 10_000,
-			ssl: { rejectUnauthorized: false }, // Allow self-signed certificates for AWS RDS
+			ssl: sslConfig,
 		});
 		this.closeTimeoutMillis = config.pool?.closeTimeoutMillis ?? 5_000;
 	}

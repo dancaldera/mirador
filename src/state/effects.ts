@@ -23,15 +23,17 @@ import { processRows } from "../utils/data-processing.js";
 import { exportData, formatExportSummary } from "../utils/export.js";
 import { historyHelpers } from "../utils/history.js";
 import {
+	generateUniqueConnectionId,
+	generateUniqueConnectionName,
+	validateConnectionNameComplete,
+} from "../utils/id-generator.js";
+import {
 	loadConnections,
 	loadQueryHistory,
-	loadTableCache,
 	saveConnections,
 	saveQueryHistory,
-	saveTableCache,
 } from "../utils/persistence.js";
 import { ActionType } from "./actions.js";
-import { tableCacheKey } from "./cache.js";
 import type { AppDispatch } from "./context.js";
 
 export async function initializeApp(dispatch: AppDispatch): Promise<void> {
@@ -96,8 +98,11 @@ export async function connectToDatabase(
 		const connectionInfo: ConnectionInfo = existing
 			? { ...existing, updatedAt: now }
 			: {
-					id: nanoid(),
-					name: `${config.type} connection`,
+					id: await generateUniqueConnectionId(),
+					name: await generateUniqueConnectionName(
+						`${config.type} connection`,
+						config.type,
+					),
 					type: config.type,
 					connectionString: config.connectionString,
 					createdAt: now,
@@ -108,8 +113,6 @@ export async function connectToDatabase(
 			type: ActionType.SetActiveConnection,
 			connection: connectionInfo,
 		});
-		const cachedTables = await loadTableCache(connectionInfo.id);
-		dispatch({ type: ActionType.SetTableCache, cache: cachedTables });
 		dispatch({
 			type: ActionType.SetInfo,
 			message: "Database connection established.",
@@ -286,7 +289,7 @@ export async function fetchColumns(
 		return;
 	}
 	dispatch({ type: ActionType.StartLoading });
-	dispatch({ type: ActionType.SetRefreshingTable, key: tableCacheKey(table) });
+	dispatch({ type: ActionType.SetRefreshingTable, key: null });
 
 	let connection: DatabaseConnection | null = null;
 
@@ -301,27 +304,6 @@ export async function fetchColumns(
 			mapColumnRow(dbConfig.type, row as QueryRow),
 		);
 		dispatch({ type: ActionType.SetColumns, columns });
-
-		const connectionId = state.activeConnection?.id;
-		if (connectionId) {
-			const cacheKey = tableCacheKey(table);
-			if (cacheKey) {
-				const existingEntry = state.tableCache[cacheKey] ?? {
-					columns: [],
-					rows: state.dataRows,
-					hasMore: state.hasMoreRows,
-					offset: state.currentOffset,
-				};
-				const updatedCache = {
-					...state.tableCache,
-					[cacheKey]: {
-						...existingEntry,
-						columns,
-					},
-				};
-				await saveTableCache(connectionId, updatedCache);
-			}
-		}
 	} catch (error) {
 		dispatch({
 			type: ActionType.SetError,
@@ -360,7 +342,7 @@ export async function fetchTableData(
 		return;
 	}
 	dispatch({ type: ActionType.StartLoading });
-	dispatch({ type: ActionType.SetRefreshingTable, key: tableCacheKey(table) });
+	dispatch({ type: ActionType.SetRefreshingTable, key: null });
 
 	let connection: DatabaseConnection | null = null;
 
@@ -764,18 +746,17 @@ export async function updateSavedConnection(
 			return;
 		}
 
-		const duplicate = state.savedConnections.some(
-			(connection) =>
-				connection.id !== connectionId &&
-				connection.name.toLowerCase() === trimmedName.toLowerCase(),
+		// Use comprehensive validation including format and uniqueness
+		const validation = await validateConnectionNameComplete(
+			trimmedName,
+			connectionId,
 		);
-
-		if (duplicate) {
-			enqueueNotification(
-				dispatch,
-				"Another saved connection already uses that name.",
-				"warning",
-			);
+		if (!validation.isValid) {
+			let message = validation.error || "Invalid connection name.";
+			if (validation.suggestion) {
+				message += ` Suggestion: "${validation.suggestion}"`;
+			}
+			enqueueNotification(dispatch, message, "warning");
 			return;
 		}
 	}

@@ -95,7 +95,7 @@ seerdb --api
 # Then send: {"type": "connect", "payload": {"type": "postgresql", "connectionString": "..."}}
 ```
 
-See [AGENT-API.md](./AGENT-API.md) for complete documentation.
+See [AGENTS.md](./AGENTS.md) for complete AI agent documentation.
 
 ## Usage
 

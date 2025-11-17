@@ -58,13 +58,6 @@ export interface ColumnInfo {
 
 export type DataRow = Record<string, unknown>;
 
-export interface TableCacheEntry {
-	columns: ColumnInfo[];
-	rows: DataRow[];
-	hasMore: boolean;
-	offset: number;
-}
-
 export type NotificationLevel = "info" | "warning" | "error";
 
 export type SortDirection = "asc" | "desc" | "off";
@@ -116,7 +109,6 @@ export interface AppState {
 	selectedRowIndex: number | null;
 	expandedRow: DataRow | null;
 	columnVisibilityMode: ColumnVisibilityMode;
-	tableCache: Record<string, TableCacheEntry>;
 	refreshingTableKey: string | null;
 	refreshTimestamps: Record<string, number>;
 	notifications: Notification[];
@@ -153,7 +145,6 @@ export const initialAppState: AppState = {
 	selectedRowIndex: null,
 	expandedRow: null,
 	columnVisibilityMode: "smart",
-	tableCache: {},
 	refreshingTableKey: null,
 	refreshTimestamps: {},
 	notifications: [],

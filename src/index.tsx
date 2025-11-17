@@ -5,7 +5,7 @@ import { App } from "./App.js";
 import { runApiMode } from "./api-mode.js";
 import { runHeadlessMode } from "./headless-mode.js";
 import { registerInkInstance } from "./inkControl.js";
-import { parseCliArgs, showHelp, showAgentHelp } from "./utils/cli-args.js";
+import { parseCliArgs, showAgentHelp, showHelp } from "./utils/cli-args.js";
 
 const main = async () => {
 	const args = parseCliArgs();

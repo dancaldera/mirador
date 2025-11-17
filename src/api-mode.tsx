@@ -5,6 +5,10 @@ import { ActionType } from "./state/actions.js";
 import { AppProvider, useAppDispatch, useAppState } from "./state/context.js";
 import { initializeApp } from "./state/effects.js";
 import { type DBType, ViewState } from "./types/state.js";
+import {
+	generateUniqueConnectionId,
+	generateUniqueConnectionName,
+} from "./utils/id-generator.js";
 import { createReadlineInterface } from "./utils/readline.js";
 
 interface ApiCommand {
@@ -108,11 +112,16 @@ class ApiModeHandler {
 			await connection.connect();
 
 			if (this.dispatch) {
+				const connectionId = await generateUniqueConnectionId();
+				const connectionName = await generateUniqueConnectionName(
+					"API Connection",
+					type as DBType,
+				);
 				this.dispatch({
 					type: ActionType.SetActiveConnection,
 					connection: {
-						id: "api-connection",
-						name: "API Connection",
+						id: connectionId,
+						name: connectionName,
 						type: type as DBType,
 						connectionString: connString,
 						createdAt: new Date().toISOString(),
@@ -183,13 +192,13 @@ const ApiModeApp: React.FC = () => {
 	React.useEffect(() => {
 		apiHandler.setContext(dispatch, state);
 		void initializeApp(dispatch);
-	}, [dispatch, state]);
+	}, [dispatch]);
 
 	return null; // No UI in API mode
 };
 
 export const runApiMode = async (): Promise<void> => {
-	console.log("Mirador API Mode");
+	console.log("SeerDB API Mode");
 	console.log("Send JSON commands via stdin, receive responses via stdout");
 	console.log('Example: {"type": "get_state"}');
 	console.log('Type {"type": "exit"} to quit');
