@@ -1,6 +1,6 @@
 {
 	"name": "seerdb",
-	"version": "0.4.2",
+	"version": "0.5.0",
 	"description": "Terminal-based database explorer rewritten in Bun/TypeScript",
 	"type": "module",
 	"main": "dist/index.js",
