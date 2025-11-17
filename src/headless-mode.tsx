@@ -1,6 +1,6 @@
+import { encode } from "@toon-format/toon";
 import { render } from "ink";
 import React from "react";
-import { encode } from "@toon-format/toon";
 import { createDatabaseConnection } from "./database/connection.js";
 import type { DatabaseConnection } from "./database/types.js";
 import { ActionType } from "./state/actions.js";

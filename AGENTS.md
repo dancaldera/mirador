@@ -112,7 +112,7 @@ seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db
 seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT * FROM users LIMIT 10" --output json
 
 # List saved connections
-seerdb --headless --list-connections --output json
+seerdb --headless --list-connections --output toon
 ```
 
 ## Security Features
@@ -160,7 +160,7 @@ seerdb --headless --db-type sqlite --connect /path/to/database.db --query "SELEC
 **Option 3: Use Saved Connections**
 ```bash
 # List existing saved connections (shows ID, name, type, masked connection string)
-seerdb --headless --list-connections --output json
+seerdb --headless --list-connections --output toon
 
 # Use a saved connection by name (human-readable)
 seerdb --headless --connection-name "My Database" --query "SELECT * FROM users LIMIT 10"
@@ -178,7 +178,7 @@ echo '{"type": "connect", "payload": {"type": "use_saved", "name": "My Database"
 
 ```bash
 # List connections to see their IDs
-seerdb --headless --list-connections --output json
+seerdb --headless --list-connections --output toon
 
 # Output shows:
 # [
@@ -341,16 +341,16 @@ const data = await agent.getTableData("users", {
 
 ```bash
 # PostgreSQL with connection string
-seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT 1" --output json
+seerdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" --query "SELECT 1" --output toon
 
 # MySQL with individual parameters
-seerdb --headless --db-type mysql --host localhost --database mydb --user myuser --password mypass --query "SELECT * FROM users LIMIT 10" --output json
+seerdb --headless --db-type mysql --host localhost --database mydb --user myuser --password mypass --query "SELECT * FROM users LIMIT 10" --output toon
 
 # SQLite
-seerdb --headless --db-type sqlite --connect /path/to/db.sqlite --query "SELECT * FROM table1" --output json
+seerdb --headless --db-type sqlite --connect /path/to/db.sqlite --query "SELECT * FROM table1" --output toon
 
 # List all saved connections
-seerdb --headless --list-connections --output json
+seerdb --headless --list-connections --output toon
 ```
 
 ## Database Support
