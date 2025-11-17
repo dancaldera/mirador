@@ -543,5 +543,3 @@ seerdb -h              # Show all command line options
 ```
 
 **🤖 End of AI Agent Documentation.** These rules and guidelines are mandatory for all AI agent interactions with SeerDB. Always prioritize security, use TOON format for data exchange, and follow the safety protocols outlined in this document.
-
-See the project documentation for complete setup and usage instructions.
