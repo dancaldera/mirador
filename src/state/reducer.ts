@@ -288,7 +288,8 @@ export function appReducer(
 				break;
 
 			default:
-				return state;
+				// Unknown action - return unchanged state
+				break;
 		}
 	});
 }

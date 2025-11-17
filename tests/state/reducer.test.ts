@@ -667,6 +667,27 @@ describe("appReducer", () => {
 			expect(result.queryHistory?.[0]).toEqual(item);
 		});
 
+		it("should initialize query history array when adding first item", () => {
+			const item: QueryHistoryItem = {
+				id: "1",
+				connectionId: "conn1",
+				query: "SELECT * FROM users",
+				executedAt: "2023-01-01T00:00:00.000Z",
+				durationMs: 100,
+				rowCount: 10,
+			};
+
+			const state = { ...initialAppState, queryHistory: undefined as any };
+
+			const result = appReducer(state, {
+				type: ActionType.AddQueryHistoryItem,
+				item,
+			});
+
+			expect(result.queryHistory).toHaveLength(1);
+			expect(result.queryHistory?.[0]).toEqual(item);
+		});
+
 		it("should add to existing query history", () => {
 			const existingItem: QueryHistoryItem = {
 				id: "existing",
@@ -949,7 +970,15 @@ describe("appReducer", () => {
 
 			const result = appReducer(initialAppState, unknownAction);
 
-			expect(result).toBe(initialAppState);
+			expect(result).toEqual(initialAppState);
+		});
+
+		it("should return original state for action without type", () => {
+			const invalidAction = {} as any;
+
+			const result = appReducer(initialAppState, invalidAction);
+
+			expect(result).toEqual(initialAppState);
 		});
 	});
 });

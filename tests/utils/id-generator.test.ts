@@ -234,15 +234,27 @@ describe("id-generator utilities", () => {
 		});
 
 		it("should generate new ID after max suffix attempts", async () => {
-			// Mock many existing connections with numbered suffixes
-			const manyConnections = Array.from({ length: 100 }, (_, i) => ({
-				id: `test_${i + 1}`,
-				name: `Test ${i + 1}`,
-				type: DBType.PostgreSQL,
-				connectionString: "postgresql://test",
-				createdAt: "2024-01-01T00:00:00Z",
-				updatedAt: "2024-01-01T00:00:00Z",
-			}));
+			// Mock many existing connections with the base ID and numbered suffixes
+			const manyConnections = [
+				// Include the base ID as taken
+				{
+					id: "test",
+					name: "Test",
+					type: DBType.PostgreSQL,
+					connectionString: "postgresql://test",
+					createdAt: "2024-01-01T00:00:00Z",
+					updatedAt: "2024-01-01T00:00:00Z",
+				},
+				// And all suffixes up to 100
+				...Array.from({ length: 100 }, (_, i) => ({
+					id: `test_${i + 1}`,
+					name: `Test ${i + 1}`,
+					type: DBType.PostgreSQL,
+					connectionString: "postgresql://test",
+					createdAt: "2024-01-01T00:00:00Z",
+					updatedAt: "2024-01-01T00:00:00Z",
+				})),
+			];
 
 			mockLoadConnections.mockResolvedValue({
 				connections: manyConnections,

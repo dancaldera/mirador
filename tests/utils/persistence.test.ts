@@ -284,9 +284,27 @@ describe("persistence utilities", () => {
 			expect(warnSpy).toHaveBeenCalledWith(
 				"Unable to normalize legacy connection entry.",
 			);
+		});
 
-			warnSpy.mockRestore();
-			safeParseSpy.mockRestore();
+		it("returns parsed data when schema validation succeeds", () => {
+			const validConnection: ConnectionInfo = {
+				id: "valid-id",
+				name: "Valid Connection",
+				type: DBType.PostgreSQL,
+				connectionString: "postgres://localhost/valid",
+				createdAt: "2023-01-01T00:00:00.000Z",
+				updatedAt: "2023-01-01T00:00:00.000Z",
+			};
+
+			const safeParseSpy = vi
+				.spyOn(__persistenceInternals.connectionSchema, "safeParse")
+				.mockReturnValueOnce({ success: true, data: validConnection });
+
+			const result =
+				__persistenceInternals.normalizeConnectionEntry(validConnection);
+
+			expect(result).toEqual(validConnection);
+			expect(result?._normalized).toBeUndefined();
 		});
 
 		it("creates directory if it doesn't exist", async () => {
