@@ -4,6 +4,33 @@
 
 This guide explains how AI agents can programmatically interact with SeerDB, the terminal-based database explorer.
 
+## 🚀 OpenCode.ai Integration (Copy-Paste Ready)
+
+**Step 1: Get the documentation**
+
+```bash
+# Copy full SeerDB agent documentation to clipboard
+sdb --copy
+```
+
+**Step 2: Paste into OpenCode.ai**
+
+Open OpenCode.ai and paste the clipboard contents. The documentation will be ready in your chat context.
+
+**Step 3: Start using SeerDB commands**
+
+```bash
+# List connections
+sdb --headless --list-connections --output toon
+
+# Run queries
+sdb --headless --connection-id "YOUR_ID" --query "SELECT * FROM users LIMIT 10" --output toon
+```
+
+**That's it!** Your OpenCode.ai session now has full SeerDB context and commands.
+
+---
+
 ## Quick Install (macOS and Linux)
 
 ```bash
