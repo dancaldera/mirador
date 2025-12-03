@@ -26,11 +26,43 @@ Built with TypeScript, React (Ink), and Bun native modules for maximum performan
 
 ## 🚀 Installation
 
+### Quick Install (macOS)
+
+```bash
+# One-line installation for macOS
+curl -fsSL https://raw.githubusercontent.com/dancaldera/seerdb/main/scripts/install.sh | zsh
+```
+
+**That's it!** The installer will:
+- ✅ Check system compatibility
+- ✅ Install Bun runtime (if needed)
+- ✅ Clone and build SeerDB
+- ✅ Create symlink in `~/.local/bin`
+- ✅ Configure PATH automatically
+
 ### Prerequisites
 
-- [Bun](https://bun.sh) 1.0+ installed
+- macOS (Intel or Apple Silicon)
+- [Bun](https://bun.sh) 1.0+ (auto-installed if missing)
+- Git (for cloning repository)
 
-### Option 1: Clone and Build
+### Development Mode
+
+```bash
+# Clone and run with hot reload
+git clone https://github.com/dancaldera/seerdb.git
+cd seerdb
+bun install
+bun run dev
+
+# Run tests
+bun test
+
+# Type checking
+bun run type-check
+```
+
+### Manual Build
 
 ```bash
 # Clone the repository
@@ -40,45 +72,14 @@ cd seerdb
 # Install dependencies
 bun install
 
-# Build (produces a self-contained binary)
+# Build the project
 bun run build
 
-# Install globally
-sudo cp dist/sdb /usr/local/bin/sdb
-
-# Run from anywhere
-sdb
-```
-
-### Option 2: Development Installation
-
-```bash
-# Clone and install
-git clone https://github.com/dancaldera/seerdb.git
-cd seerdb
-bun install
-
-# Add to PATH (add to ~/.zshrc or ~/.bashrc)
-export PATH="$HOME/.local/bin:$PATH"
-
-# Build
-bun run build
-
-# Create symlink directly to binary
+# Create symlink
 ln -sf "$(pwd)/dist/sdb" ~/.local/bin/sdb
-```
 
-### Development Mode
-
-```bash
-# Run with hot reload
-bun run dev
-
-# Run tests
-bun test
-
-# Type checking
-bun run type-check
+# Add to PATH if needed
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## 📖 Usage

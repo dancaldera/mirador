@@ -4,6 +4,21 @@
 
 This guide explains how AI agents can programmatically interact with SeerDB, the terminal-based database explorer.
 
+## Quick Install (macOS)
+
+```bash
+# One-line installation for macOS
+curl -fsSL https://raw.githubusercontent.com/dancaldera/seerdb/main/scripts/install.sh | zsh
+```
+
+After installation, verify SeerDB is working:
+
+```bash
+sdb --version
+```
+
+**For complete documentation**: See [README.md](./README.md) for detailed usage instructions.
+
 ## Overview
 
 SeerDB provides multiple interfaces for AI agents to safely interact with databases:
