@@ -17,7 +17,121 @@ After installation, verify SeerDB is working:
 sdb --version
 ```
 
+## 🚀 AI Agent Quick Commands
+
+**Copy-paste ready commands for AI agents:**
+
+```bash
+# 1. List all saved connections
+sdb --headless --list-connections --output toon
+
+# 2. Query using saved connection
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT * FROM users LIMIT 10" --output toon
+
+# 3. Get database schema
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT table_name, column_name FROM information_schema.columns" --output toon
+
+# 4. Browse table with SQL
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT * FROM users WHERE active = true LIMIT 50" --output toon
+```
+
 **For complete documentation**: See [README.md](./README.md) for detailed usage instructions.
+
+## ⚡ Super Simple Mode (AI Agent Friendly)
+
+**Ultra-minimal commands for basic operations:**
+
+```bash
+# 1. List saved databases/connections
+sdb --headless --list-connections --output toon
+
+# 2. Run any SQL query
+sdb --headless --query "SELECT * FROM table LIMIT 10" --output toon
+
+# 3. Get schema info
+sdb --headless --query "SELECT table_name FROM information_schema.tables" --output toon
+
+# 4. Use saved connection by ID
+sdb --headless --connection-id "ID" --query "SELECT * FROM users" --output toon
+```
+
+**That's it!** Just these 4 commands handle 90% of agent use cases.
+
+## 🎯 Agent Recipes (Copy-Paste Ready)
+
+### Recipe 1: Explore Any Database Schema
+
+```bash
+# Step 1: List connections to find the ID
+sdb --headless --list-connections --output toon
+
+# Step 2: Get all tables
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT table_name FROM information_schema.tables" --output toon
+
+# Step 3: Get columns for a specific table
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'users'" --output toon
+```
+
+### Recipe 2: Quick Data Sampling
+
+```bash
+# Sample 10 users safely
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT * FROM users LIMIT 10" --output toon
+
+# Sample 50 records with filter
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT * FROM products WHERE active = true LIMIT 50" --output toon
+
+# Get record count
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT COUNT(*) FROM table_name" --output toon
+```
+
+### Recipe 3: Safe Query Execution
+
+```bash
+# Safe query (has LIMIT automatically checked)
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT id, name, email FROM users LIMIT 25" --output toon
+
+# Get specific user
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT * FROM users WHERE id = 123" --output toon
+
+# Search with filter
+sdb --headless --connection-id "YOUR_CONNECTION_ID" --query "SELECT * FROM products WHERE category = 'electronics'" --output toon
+```
+
+### Recipe 4: API Mode for Complex Operations
+
+```bash
+# Start API mode (interactive)
+sdb --api
+
+# Then send commands:
+{"type": "connect", "payload": {"type": "use_saved", "id": "YOUR_CONNECTION_ID"}}
+{"type": "query", "payload": {"sql": "SELECT * FROM users LIMIT 5"}}
+{"type": "get_schema"}
+{"type": "exit"}
+```
+
+### Recipe 5: Programmatic Usage (TypeScript)
+
+```typescript
+import { createAgent } from "./dist/index.js";
+
+const agent = createAgent();
+
+// Connect using saved connection ID
+await agent.connect({
+  type: "postgresql",
+  connectionString: "postgresql://user@localhost:5432/db" // or use env vars
+});
+
+// Safe operations
+const result = await agent.query("SELECT * FROM users LIMIT 10");
+const schema = await agent.getSchema();
+
+// Export to TOON
+const toonData = await agent.exportData(result, "toon");
+console.log(toonData);
+```
 
 ## Overview
 
