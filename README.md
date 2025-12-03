@@ -29,7 +29,6 @@ Built with TypeScript, React (Ink), and Bun native modules for maximum performan
 ### Quick Install (macOS and Linux)
 
 ```bash
-# One-line installation for macOS and Linux
 curl -fsSL https://raw.githubusercontent.com/dancaldera/seerdb/main/scripts/install.sh | bash
 ```
 
@@ -474,4 +473,4 @@ bun check       # Code formatting and linting
 
 ---
 
-Created with ❤️ by [Daniel Caldera](https://github.com/dancaldera) for terminal enthusiasts and database developers
+Created with ❤️ by [Daniel Caldera](https://github.com/dancaldera)
