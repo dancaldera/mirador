@@ -550,7 +550,10 @@ sdb --headless --db-type postgresql --connect "postgresql://user:pass@host/db" -
 
 ## Best Practices
 
-### 1. Always Use LIMIT Clauses
+### 1. UTC Timestamps
+Database timestamp fields (like `created_at`, `updated_at`) are typically stored in **UTC format** with the 'Z' suffix (e.g., `2025-12-03T16:57:32.298Z`). Always treat these as UTC when displaying or filtering in your application.
+
+### 2. Always Use LIMIT Clauses
 ```typescript
 // ❌ Avoid - triggers warning
 await agent.query("SELECT * FROM users");
@@ -559,7 +562,7 @@ await agent.query("SELECT * FROM users");
 await agent.query("SELECT * FROM users LIMIT 100");
 ```
 
-### 2. Use Safe Methods for Exploration
+### 3. Use Safe Methods for Exploration
 ```typescript
 // ❌ Avoid during exploration
 await agent.query("SELECT * FROM users WHERE last_login > '2024-01-01'");
@@ -571,7 +574,7 @@ const recentUsers = await agent.getTableData("users", {
 });
 ```
 
-### 3. Handle Errors Properly
+### 4. Handle Errors Properly
 ```typescript
 try {
   await agent.connect(config);
@@ -584,7 +587,7 @@ try {
 }
 ```
 
-### 4. Use Parameterized Queries
+### 5. Use Parameterized Queries
 ```typescript
 // PostgreSQL
 const users = await agent.query("SELECT * FROM users WHERE role = $1 AND active = $2", ["admin", true]);
@@ -593,7 +596,7 @@ const users = await agent.query("SELECT * FROM users WHERE role = $1 AND active 
 const users = await agent.query("SELECT * FROM users WHERE role = ? AND active = ?", ["admin", true]);
 ```
 
-### 5. Override Warnings When Appropriate
+### 6. Override Warnings When Appropriate
 ```typescript
 // For intentional large queries
 const allUsers = await agent.query("SELECT id, name FROM users ORDER BY name", {
@@ -606,7 +609,7 @@ const result = await agent.query("UPDATE users SET active = false WHERE last_log
 });
 ```
 
-### 6. User Confirmation for Dangerous Operations
+### 7. User Confirmation for Dangerous Operations
 ```typescript
 // This will prompt for user confirmation before execution:
 await agent.query("DELETE FROM old_logs WHERE created_at < '2023-01-01'");

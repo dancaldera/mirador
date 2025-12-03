@@ -10,8 +10,8 @@
 	"scripts": {
 		"dev": "bun --watch src/index.tsx",
 		"build": "bun run build:bundle && bun run build:compile",
-		"build:bundle": "esbuild src/index.tsx --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --minify --external:bun:sqlite",
-		"build:compile": "bun scripts/patch-ink.ts && bun build src/index.tsx --compile --outfile dist/sdb --target bun --minify --external bun:sqlite",
+		"build:bundle": "cp AGENTS.md dist/ && esbuild src/index.tsx --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --minify --external:bun:sqlite",
+		"build:compile": "bun scripts/patch-ink.ts && cp AGENTS.md dist/ && bun build src/index.tsx --compile --outfile dist/sdb --target bun --minify --external bun:sqlite",
 		"build:wrapper": "echo '#Wrapper no longer needed with ASM patch'",
 		"build:exe": "bun run build:compile",
 		"start": "bun dist/index.js",

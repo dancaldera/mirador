@@ -120,9 +120,9 @@ const main = async () => {
 			// Try multiple possible locations for AGENTS.md
 			let agentsMdPath: string | null = null;
 			const possiblePaths = [
-				// When running from project root
+				// When running from dist/ (bundled with binary)
 				join(process.cwd(), "AGENTS.md"),
-				// When running from dist/
+				// When running from project root
 				join(process.cwd(), "..", "AGENTS.md"),
 				// When running as installed binary (try common locations)
 				"/usr/local/share/seerdb/AGENTS.md",
