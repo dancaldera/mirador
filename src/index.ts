@@ -5,8 +5,6 @@ import { join } from "path";
 import { runApiMode } from "./api-mode.js";
 import { createDatabaseConnection } from "./database/connection.js";
 import { runHeadlessMode } from "./headless-mode.js";
-import { ActionType } from "./state/actions.js";
-import { initializeApp } from "./state/effects.js";
 import type { DBType } from "./types/state.js";
 import { parseCliArgs, showHelp } from "./utils/cli-args.js";
 import { buildConnectionString } from "./utils/connection-string.js";
