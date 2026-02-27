@@ -1,8 +1,13 @@
 import { createDatabaseConnection } from "./database/connection.js";
 import { ActionType } from "./state/actions.js";
 import { initializeApp } from "./state/effects.js";
-import { type AppDispatch, createStore, type StateStore } from "./state/store.js";
+import {
+	type AppDispatch,
+	createStore,
+	type StateStore,
+} from "./state/store.js";
 import type { AppState, DBType } from "./types/state.js";
+import { buildConnectionString } from "./utils/connection-string.js";
 import {
 	generateUniqueConnectionId,
 	generateUniqueConnectionName,
@@ -175,22 +180,14 @@ class ApiModeHandler {
 
 			// Build connection string if individual parameters provided
 			if (!connString && type) {
-				switch (type) {
-					case "postgresql":
-						connString = `postgresql://${user}:${password}@${host}:${port || 5432}/${database}`;
-						break;
-					case "mysql":
-						connString = `mysql://${user}:${password}@${host}:${port || 3306}/${database}`;
-						break;
-					case "sqlite":
-						connString = host || database; // file path
-						break;
-					default:
-						return {
-							success: false,
-							error: `Unsupported database type: ${type}`,
-						};
-				}
+				connString = buildConnectionString({
+					dbType: type,
+					host,
+					port,
+					database,
+					user,
+					password,
+				});
 			}
 
 			if (!connString) {

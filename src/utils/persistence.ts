@@ -1,13 +1,5 @@
-import {
-	createCipheriv,
-	createDecipheriv,
-	createHash,
-	randomBytes,
-} from "node:crypto";
-import { constants } from "node:fs";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 import type {
 	ColumnInfo,
@@ -16,100 +8,22 @@ import type {
 } from "../types/state.js";
 import { DBType } from "../types/state.js";
 import { DebouncedWriter } from "./debounced-writer.js";
-
-let dataDir = process.env.SEERDB_DATA_DIR ?? path.join(os.homedir(), ".seerdb");
-
-function resolveDataPath(filename: string): string {
-	return path.join(dataDir, filename);
-}
-
-export function setPersistenceDataDirectory(dir: string): void {
-	dataDir = dir;
-}
-
-// Encryption key derivation - uses machine-specific salt
-const ENCRYPTION_KEY_FILE = "encryption.key";
-const ALGORITHM = "aes-256-gcm";
-
-async function getEncryptionKey(): Promise<Buffer> {
-	const keyPath = resolveDataPath(ENCRYPTION_KEY_FILE);
-
-	// Try to load existing key
-	try {
-		if (await fileExists(keyPath)) {
-			const keyData = await readFile(keyPath);
-			if (keyData.length === 32) {
-				return keyData;
-			}
-		}
-	} catch {
-		// Key file doesn't exist or is invalid
-	}
-
-	// Generate new key
-	const newKey = randomBytes(32);
-	await ensureDataDirectory();
-	await writeFile(keyPath, newKey);
-
-	return newKey;
-}
-
-async function encryptPassword(
-	password: string,
-): Promise<{ encrypted: string; iv: string; tag: string }> {
-	const key = await getEncryptionKey();
-	const iv = randomBytes(16);
-	const cipher = createCipheriv(ALGORITHM, key, iv);
-
-	let encrypted = cipher.update(password, "utf8", "hex");
-	encrypted += cipher.final("hex");
-
-	const tag = cipher.getAuthTag();
-
-	return {
-		encrypted,
-		iv: iv.toString("hex"),
-		tag: tag.toString("hex"),
-	};
-}
-
-async function decryptPassword(encryptedData: {
-	encrypted: string;
-	iv: string;
-	tag: string;
-}): Promise<string> {
-	const key = await getEncryptionKey();
-	const iv = Buffer.from(encryptedData.iv, "hex");
-	const tag = Buffer.from(encryptedData.tag, "hex");
-
-	const decipher = createDecipheriv(ALGORITHM, key, iv);
-	decipher.setAuthTag(tag);
-
-	let decrypted = decipher.update(encryptedData.encrypted, "hex", "utf8");
-	decrypted += decipher.final("utf8");
-
-	return decrypted;
-}
-
-function maskPassword(connectionString: string): string {
-	// Common connection string patterns
-	const patterns = [
-		/postgresql:\/\/([^:]+):([^@]+)@/, // postgresql://user:pass@host
-		/mysql:\/\/([^:]+):([^@]+)@/, // mysql://user:pass@host
-		/password=([^&;]+)/, // password=pass
-		/\/\/([^:]+):([^@]+)@/, // //user:pass@host
-	];
-
-	let masked = connectionString;
-	patterns.forEach((pattern) => {
-		masked = masked.replace(pattern, (_, user, pass) => {
-			const maskedPass = "*".repeat(Math.min(pass.length, 8));
-			return `${user}:${maskedPass}@`;
-		});
-	});
-
-	return masked;
-}
+import {
+	decryptPassword,
+	encryptPassword,
+	getEncryptionKey,
+} from "./encryption.js";
+import {
+	ensureDataDirectory,
+	fileExists,
+	resolveDataPath,
+	setPersistenceDataDirectory,
+} from "./file-utils.js";
+import {
+	extractPasswordFromConnectionString,
+	maskPassword,
+	restorePasswordToConnectionString,
+} from "./mask.js";
 
 const connectionsWriter = new DebouncedWriter<ConnectionInfo[]>(
 	async (data) => {
@@ -184,25 +98,6 @@ const columnSchema: z.ZodType<ColumnInfo> = z.object({
 	foreignTable: z.string().optional(),
 	foreignColumn: z.string().optional(),
 });
-
-async function ensureDataDirectory(): Promise<void> {
-	try {
-		await mkdir(dataDir, { recursive: true });
-	} catch (error) {
-		throw new Error(
-			`Failed to ensure data directory: ${(error as Error).message}`,
-		);
-	}
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-	try {
-		await access(filePath, constants.F_OK);
-		return true;
-	} catch {
-		return false;
-	}
-}
 
 export interface ConnectionsLoadResult {
 	connections: ConnectionInfo[];
@@ -528,85 +423,17 @@ function createDeterministicId(value: string): string {
 	return createHash("sha1").update(value).digest("hex").slice(0, 12);
 }
 
-function extractPasswordFromConnectionString(
-	connectionString: string,
-): string | null {
-	// Extract password from various connection string formats
-	const patterns = [
-		/postgresql:\/\/[^:]+:([^@]+)@/, // postgresql://user:pass@host
-		/mysql:\/\/[^:]+:([^@]+)@/, // mysql://user:pass@host
-		/password=([^&;]+)/, // password=pass
-		/\/\/[^:]+:([^@]+)@/, // //user:pass@host
-	];
-
-	for (const pattern of patterns) {
-		const match = connectionString.match(pattern);
-		if (match && match[1]) {
-			return match[1];
-		}
-	}
-
-	return null;
-}
-
-function restorePasswordToConnectionString(
-	maskedConnectionString: string,
-	password: string,
-): string {
-	// Replace masked password with actual password
-	const patterns = [
-		{
-			masked: /postgresql:\/\/([^:]+):\*+@/,
-			restore: (_: string, user: string) => `postgresql://${user}:${password}@`,
-		},
-		{
-			masked: /postgres:\/\/([^:]+):\*+@/,
-			restore: (_: string, user: string) => `postgres://${user}:${password}@`,
-		},
-		{
-			masked: /postgres:([^:]+):\*+@([^/]+)/,
-			restore: (_: string, user: string, host: string) =>
-				`postgres:${user}:${password}@${host}`,
-		},
-		{
-			masked: /postgres:\*+@([^/]+)/,
-			restore: (_: string, host: string) =>
-				`postgresql://postgres:${password}@${host}`,
-		},
-		{
-			masked: /mysql:\/\/([^:]+):\*+@/,
-			restore: (_: string, user: string) => `mysql://${user}:${password}@`,
-		},
-		{
-			masked: /password=\*+/,
-			restore: () => `password=${password}`,
-		},
-		{
-			masked: /\/\/([^:]+):\*+@/,
-			restore: (_: string, user: string) => `//${user}:${password}@`,
-		},
-	];
-
-	for (const { masked, restore } of patterns) {
-		if (masked.test(maskedConnectionString)) {
-			return maskedConnectionString.replace(masked, restore);
-		}
-	}
-
-	return maskedConnectionString;
-}
-
-// Export utility functions for credential sanitization
-export { maskPassword };
+export { setPersistenceDataDirectory } from "./file-utils.js";
 
 export const __persistenceInternals = {
 	normalizeConnectionEntry,
 	connectionSchema,
-	maskPassword,
+	connectionsWriter,
+	queryHistoryWriter,
+	// Re-exported for testing
 	getEncryptionKey,
 	encryptPassword,
 	decryptPassword,
-	connectionsWriter,
-	queryHistoryWriter,
+	maskPassword,
 	restorePasswordToConnectionString,
 } as const;

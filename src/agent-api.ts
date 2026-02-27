@@ -1,6 +1,7 @@
 import { createDatabaseConnection } from "./database/connection.js";
 import type { DatabaseConnection, QueryRow } from "./database/types.js";
 import type { DBType } from "./types/state.js";
+import { buildConnectionString } from "./utils/connection-string.js";
 import { exportToJsonString, exportToToonString } from "./utils/export.js";
 
 export interface DatabaseConfig {
@@ -56,25 +57,14 @@ export class SeerDBAgent {
 
 			// Build connection string from individual parameters
 			if (!connectionString) {
-				switch (config.type) {
-					case "postgresql":
-						connectionString =
-							config.password && config.password.trim() !== ""
-								? `postgresql://${config.user}:${config.password}@${config.host}:${config.port || 5432}/${config.database}`
-								: `postgresql://${config.user}@${config.host}:${config.port || 5432}/${config.database}`;
-						break;
-					case "mysql":
-						connectionString =
-							config.password && config.password !== ""
-								? `mysql://${config.user}:${config.password}@${config.host}:${config.port || 3306}/${config.database}`
-								: `mysql://${config.user}@${config.host}:${config.port || 3306}/${config.database}`;
-						break;
-					case "sqlite":
-						connectionString = config.host || config.database || "";
-						break;
-					default:
-						throw new Error(`Unsupported database type: ${config.type}`);
-				}
+				connectionString = buildConnectionString({
+					dbType: config.type,
+					host: config.host,
+					port: config.port,
+					database: config.database,
+					user: config.user,
+					password: config.password,
+				});
 			}
 
 			this.connection = createDatabaseConnection({

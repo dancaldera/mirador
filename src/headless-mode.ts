@@ -5,11 +5,13 @@ import { initializeApp } from "./state/effects.js";
 import { createStore } from "./state/store.js";
 import type { DBType } from "./types/state.js";
 import type { CliArgs } from "./utils/cli-args.js";
+import { buildConnectionString } from "./utils/connection-string.js";
 import {
 	generateUniqueConnectionId,
 	generateUniqueConnectionName,
 } from "./utils/id-generator.js";
-import { loadConnections, maskPassword } from "./utils/persistence.js";
+import { maskPassword } from "./utils/mask.js";
+import { loadConnections } from "./utils/persistence.js";
 
 export const runHeadlessMode = async (args: CliArgs): Promise<void> => {
 	const store = createStore();
@@ -19,9 +21,11 @@ export const runHeadlessMode = async (args: CliArgs): Promise<void> => {
 		// Initialize the app (loads saved connections and query history)
 		await initializeApp(dispatch);
 
+		// Load connections once for reuse
+		const connectionsResult = await loadConnections();
+
 		// Handle list connections
 		if (args.listConnections) {
-			const connectionsResult = await loadConnections();
 			// Mask connection strings in output
 			const maskedConnections = connectionsResult.connections.map((conn) => ({
 				...conn,
@@ -36,7 +40,6 @@ export const runHeadlessMode = async (args: CliArgs): Promise<void> => {
 
 		// Handle connection by ID first
 		if (args.connectionId) {
-			const connectionsResult = await loadConnections();
 			const savedConnection = connectionsResult.connections.find(
 				(conn) => conn.id === args.connectionId,
 			);
@@ -59,7 +62,6 @@ export const runHeadlessMode = async (args: CliArgs): Promise<void> => {
 		}
 		// Handle connection by name
 		else if (args.connectionName) {
-			const connectionsResult = await loadConnections();
 			const savedConnection = connectionsResult.connections.find(
 				(conn) => conn.name === args.connectionName,
 			);
@@ -105,26 +107,14 @@ export const runHeadlessMode = async (args: CliArgs): Promise<void> => {
 		// Handle connection from individual parameters
 		else if (args.dbType && args.host && args.database && args.user) {
 			// Build connection string from individual parameters
-			let connectionString: string;
-			switch (args.dbType) {
-				case "postgresql":
-					connectionString =
-						args.password && args.password.trim() !== ""
-							? `postgresql://${args.user}:${args.password}@${args.host}:${args.port || 5432}/${args.database}`
-							: `postgresql://${args.user}@${args.host}:${args.port || 5432}/${args.database}`;
-					break;
-				case "mysql":
-					connectionString =
-						args.password && args.password.trim() !== ""
-							? `mysql://${args.user}:${args.password}@${args.host}:${args.port || 3306}/${args.database}`
-							: `mysql://${args.user}@${args.host}:${args.port || 3306}/${args.database}`;
-					break;
-				case "sqlite":
-					connectionString = args.host || args.database || "";
-					break;
-				default:
-					throw new Error(`Unsupported database type: ${args.dbType}`);
-			}
+			const connectionString = buildConnectionString({
+				dbType: args.dbType,
+				host: args.host,
+				port: args.port,
+				database: args.database,
+				user: args.user,
+				password: args.password,
+			});
 
 			const connection = createDatabaseConnection({
 				type: args.dbType as DBType,
